@@ -1,4 +1,11 @@
 
+## 2026-10-13 — Historial footer labels the quantity and print shows parked columns
+
+The page total keeps the quantity sum in the Fecha cell with a Cant. label,
+so it no longer sits under Producto. Imprimir reporte opens each row's
+Ver detalles before printing, and print CSS shows those parked columns
+when the details stay closed.
+
 ## 2026-10-13 — Ventas historial, detalle, and Express stay one click deep
 
 Historial leads with the date, the product, the total, and Ver / Anular.

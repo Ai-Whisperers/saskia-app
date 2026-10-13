@@ -90,7 +90,7 @@
                onchange="this.form.submit()">
         Ver anuladas
       </label>
-      <button type="button" class="btn btn-sm no-print" onclick="window.print()">🖨 Imprimir reporte</button>
+      <button type="button" class="btn btn-sm no-print" onclick="printSaleHistory()">🖨 Imprimir reporte</button>
     </div>
   </details>
 </form>
@@ -220,8 +220,11 @@
     <tr style="background:var(--color-surface-subtle);font-weight:700;">
       <td>
         <div class="sale-list__l1">
-          <div class="sale-list__fecha">Total ({{ sales|length }} ventas)</div>
-          <div class="sale-list__producto num">{{ sales|sum(attribute='qty') }}</div>
+          <div class="sale-list__fecha">
+            Total ({{ sales|length }} ventas)
+            <span class="sale-list__qty-sum num">Cant. {{ sales|sum(attribute='qty') }}</span>
+          </div>
+          <div class="sale-list__producto"></div>
           <div class="sale-list__total num">{{ m.gs(sales|sum(attribute='total_gs')|int) }}</div>
           <div class="sale-list__actions"></div>
           <div class="sale-list__details"></div>
@@ -253,4 +256,20 @@
 {% else %}
 {{ ui.empty_state(title="Todavía no hay ventas en el historial", icon="icon-sale", hint="Las ventas que registres aparecerán acá.") }}
 {% endif %}
+<script>
+function printSaleHistory() {
+  var closed = [];
+  document.querySelectorAll(".sale-list details.sale-list__details").forEach(function (d) {
+    if (!d.open) {
+      closed.push(d);
+      d.open = true;
+    }
+  });
+  window.addEventListener("afterprint", function restore() {
+    closed.forEach(function (d) { d.open = false; });
+    window.removeEventListener("afterprint", restore);
+  });
+  window.print();
+}
+</script>
 {% endblock %}

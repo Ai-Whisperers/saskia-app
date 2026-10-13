@@ -85,6 +85,51 @@ def test_historial_leads_with_fecha_producto_and_total():
     assert "sales|sum(attribute='total_gs')" in src
 
 
+def test_historial_footer_labels_the_qty_sum_in_fecha():
+    """The page total's quantity sits in Fecha with a Cant. label.
+
+    An unlabeled number under Producto reads as another product name.
+    """
+    src = TEMPLATES.joinpath("ventas_historial.html").read_text(encoding="utf-8")
+    tfoot = _slice(src, "<tfoot>", "</tfoot>")
+    fecha = _slice(tfoot, 'class="sale-list__fecha"', "</div>")
+    producto = _slice(tfoot, 'class="sale-list__producto"', "</div>")
+    assert "Cant." in fecha
+    assert "sales|sum(attribute='qty')" in fecha
+    assert "sales|sum(attribute='qty')" not in producto
+    assert "sales|sum(attribute='total_gs')" in tfoot
+
+
+def test_historial_print_shows_parked_columns():
+    """Imprimir reporte opens each row, and print CSS shows the panel.
+
+    Closed details hide Cant., unit price, cliente, pago, canal, and notas.
+    """
+    html = TEMPLATES.joinpath("ventas_historial.html").read_text(encoding="utf-8")
+    assert 'onclick="printSaleHistory()"' in html
+    opener = html.find("d.open = true")
+    printer = html.find("window.print()", opener)
+    assert opener > 0
+    assert printer > opener
+    assert (
+        ".sale-list details.sale-list__details"
+        in html[html.find("function printSaleHistory()") : printer]
+    )
+
+    css = (REPO_ROOT / "app" / "static" / "theme.css").read_text(encoding="utf-8")
+    marker = ".sale-list details.sale-list__details::details-content"
+    idx = css.find(marker)
+    assert idx > 0
+    block_start = css.rfind("@media print", 0, idx)
+    assert block_start > 0
+    content_rule = css[idx : css.find("}", idx)]
+    assert "content-visibility: visible" in content_rule
+    panel = css.find(".sale-list details.sale-list__details > .inv-list__panel", idx)
+    assert panel > idx
+    panel_rule = css[panel : css.find("}", panel)]
+    assert "display: flex" in panel_rule
+
+
 def test_detalle_leads_with_total_product_and_recibo():
     """L1 is the total, the product with qty, the voided pill, and the receipt.
 

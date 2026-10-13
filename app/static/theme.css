@@ -1526,6 +1526,29 @@ form ui-date {
   .sale-list__details[open] > .inv-list__panel { grid-column: auto; grid-row: auto; width: 100%; }
   .sale-list thead .sale-list__l1 > .sale-list__details { justify-self: stretch; }
 }
+.sale-list tfoot .sale-list__qty-sum {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+@media print {
+  .sale-list details.sale-list__details {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .sale-list details.sale-list__details::details-content {
+    content-visibility: visible;
+    display: block;
+  }
+  .sale-list details.sale-list__details > .inv-list__panel {
+    display: flex !important;
+    width: 100%;
+  }
+}
 
 .sale-detail__lead {
   display: flex;
