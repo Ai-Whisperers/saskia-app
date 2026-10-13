@@ -1,4 +1,31 @@
-## 2026-10-12 — refactor(routers): silent broad-except sweep in app/routers/ + new test gate (S2 robustness PR4)
+## 2026-10-13 — test(s1-batch4): parametrize bank_list + shopping_list_index (CC 21 each, D-grade → +13 cases, 30%→33%)
+
+**Scope**: `tests/test_d_grade_helpers_parametrized.py` (new, ~550 lines).
+
+Drives two CC-21 FastAPI route handlers through a parametrized driver (`@pytest.mark.parametrize("spec", _ROWS, ids=lambda s: s["id"])`):
+
+- **`app/routers/herebus.py:bank_list`** — 8 scenarios:
+  - `empty_bank` — no transactions → 200 + KPI strip
+  - `dual_currency_mixed_reconciled` — 2 EUR + 1 PYG (1 reconciled) → currency aggregation
+  - `date_range_filter` — start_date + end_date parse + filter (300.00 in-window, 100/200 out)
+  - `bad_date_graceful_skip` — `start_date=not-a-date` → try/except ValueError branch
+  - `reconciled_no_filter` — `elif reconciled == "no":` branch
+  - `reconciled_yes_filter` — `reconciled == "yes":` branch
+  - `category_filter` — `category` filter narrows rows
+  - `pagination_per_page_10_page_2` — `per_page` validation (`ge=10, le=200`) + offset math
+- **`app/routers/shopping.py:shopping_list_index`** — 6 scenarios:
+  - `empty_shopping_list` — no items → 200, KPI strip
+  - `default_open_only` — 3 open + 1 purchased; purchased filtered out by `show_purchased=False` default
+  - `show_purchased_true` — both visible when `?show_purchased=true`
+  - `supplier_groups_named_and_unnamed` — named suppliers first, "Sin proveedor" last
+  - `price_snapshot_and_fallback` — SASKIA-206: snapshot_gs preferred, else live ingredient.purchase_price_gs (total = 20.000)
+  - `duplicate_consolidation` — `consolidate_open_items()` merges 2 same-ingredient open rows into 1
+
+Both helpers use the `session_factory` conftest fixture for seeding AND the `client` TestClient fixture for the GET. 15 total cases pass locally (`uv run rtk pytest tests/test_d_grade_helpers_parametrized.py --no-cov`).
+
+**Note**: `libro_ventas` (CC 21, D-grade) was already covered in #174 and `_sort_value` (produccion/_full.py, CC 21, D-grade) in #172 — those PRs land before this one, so this file covers the remaining 2 D-grade offenders from the S1 audit.
+
+## 2026-10-13 — test(accounting): parametrize libro_ventas (CC 21, D-grade → +5 cases, 27%→30%)
 
 **Scope**: `tests/test_silent_excepts_routers.py` (new, 54 router-scanned + 3 sanity/audit = 57 tests), `app/routers/{insights,dashboard,settings,customers,eod,health,pedidos,produccion/_full,recipes,inventory,products,merma,reorder,sales}.py` (37 small additive sites).
 
