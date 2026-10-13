@@ -1,57 +1,42 @@
-## 2026-10-13 — refactor(rms): SASKIA-211ab split batch_recipes_cost (CC 18 → 7, C → B, 3 helpers)
+## 2026-10-13 — test(s1-batch13): parametrize produccion_print + reclassify (CC 22 + 22, D-grade, +21 cases)
 
-**Scope**: `app/rms/profitability/cost.py` (orchestrator + 3 private helpers, +60/-48) and `app/rms/sales/lifecycle.py` (thin re-export, -48). Continues the s3 batch-3/4/5/6/7/8 orchestrator pattern (most-recent: `apply_sale` in batch-8 / PR #190). The previous lifecycle.py:506 `batch_recipes_cost` was a full duplicate of the canonical body in `cost.py:378` (not a thin re-export as the s3 batch-8 CHANGELOG note claimed) — so the same CC-18 number appeared in two files. This PR refactors the canonical function and replaces the duplicate in `sales/lifecycle.py` with a `from app.rms.profitability.cost import batch_recipes_cost` re-export (so `lifecycle.batch_recipes_cost is cost.batch_recipes_cost` is now `True`).
+**Scope**: `tests/test_d_grade_helpers_batch13.py` (new, ~770 lines). Continues the s1 batch-3/4/5/6/7/8/9/10/11/12 helper-coverage sweep (#174, #178, #179, #181, #184, #186, #189, #191, #192, #193). Picks the next 2 fresh D-grade offenders from `uv run scripts/check_complexity.py | grep '^ D cc=2[0-9]'` (filtered to drop anything already covered by the prior batches) — `produccion_print` (CC 22, D-grade, `app/routers/produccion/print_export.py:37`) and `reclassify` (CC 22, D-grade, `scripts/reclassify_sale_channels.py:180`).
 
-Orchestrator pattern: thin coordinator (`batch_recipes_cost`, CC 7 B — at the rule-40 ≤ 10 ceiling) + three single-purpose private helpers, all A or B grade. No behavior change — every branch from the pre-split implementation is preserved character-for-character. Public signature `batch_recipes_cost(session: Session, recipes: list[Recipe]) -> dict[int, tuple[CostResult, CostResult | None, int]]` is unchanged so the 132 test cases across the 8 most directly-touching test files (costing + yield-labor + prime-cost-batched + recipe-polymorphic + d-grade-helpers-batch9/10 + profitability-sales-split + dashboard-analytics-sections + qa-report/qa-round1) all keep passing without modification.
+The choice of these two was deliberate: `produccion_print` was listed in the batch-12 skip list as "out of scope for s1", but it's the printable day-view route (every shift relies on it for paper printouts) and has only narrow route-level smoke coverage in `tests/test_produccion_print.py` (auth + 200 + date in body). `reclassify` has only the narrow SASKIA-204 smoke in `tests/test_reclassify_sale_channels.py` (single happy path + a dry-run no-op). Neither has a parametrized branch matrix; this file closes the gap.
 
-Helpers extracted (all in `app/rms/profitability/cost.py`, immediately above the orchestrator):
+**Helpers covered**:
 
-- `_empty_batch_recipes_result(recipes) -> dict[int, tuple[CostResult, CostResult | None, int]]` CC 2 (A) — builds the empty-result dict for the `if not recipe_ids` branch. Returns `{r.id: (CostResult(batch_cost_gs=None, missing_ingredient_names=[]), None, 0) for r in recipes}` so the public contract holds when every input recipe is `None` (or has no `.id`).
-- `_preload_recipe_costs(session, recipe_ids, all_lines) -> None` CC 9 (B) — pre-loads Ingredients + sub-recipe Recipe + RecipeLine rows into the SQLAlchemy identity map. Performs up to 3 SELECTs (ingredient → sub-recipe Recipe → sub-recipe RecipeLine) so the subsequent per-recipe walk in `recipe_batch_cost_gs` / `recipe_unit_cost_gs` hits the identity map instead of issuing N+1 queries. Branch order (ingredient first, sub-recipe second) and the `if new_recipe_ids:` guard on the sub-recipe RecipeLine SELECT are preserved from the pre-split implementation.
-- `_compute_recipe_costs(session, recipes, line_counts) -> dict[int, tuple[CostResult, CostResult | None, int]]` CC 4 (A) — loops over `recipes` (skipping `None` entries via the same `if r is None: continue` guard the pre-split inline code used) and calls `recipe_batch_cost_gs` + the optional `recipe_unit_cost_gs` (only when `batch.batch_cost_gs is not None` — the same gate the pre-split inline code used). Builds the final `{r.id: (batch, unit, line_counts.get(r.id, 0))}` output dict.
+### (1) `app/routers/produccion/print_export.py:produccion_print` — CC 22 (radon D-grade)
 
-Orchestrator (`batch_recipes_cost`, CC 7 B):
+9 scenarios: `empty_db_renders_empty_pack`, `product_with_positive_qty_no_completion`, `product_zero_qty_with_completion_kept`, `product_zero_qty_no_completion_skipped`, `product_without_recipe_renders`, `ad_hoc_completion_added_to_print_rows`, `multi_day_pack_eager_3_days`, `worksheet_mode_renders_blank_sheet`, `shift_saved_query_passthrough`.
 
-```text
-1. if not recipes: return {}
-2. recipe_ids = {r.id for r in recipes if r is not None}
-3. if not recipe_ids: return _empty_batch_recipes_result(recipes)
-4. session.scalars(select(Recipe).where(Recipe.id.in_(recipe_ids))).all()
-5. all_lines = session.scalars(select(RecipeLine).where(RecipeLine.recipe_id.in_(recipe_ids))).all()
-6. line_counts = {rid: 0 for rid in recipe_ids}; accumulate from all_lines
-7. _preload_recipe_costs(session, recipe_ids, all_lines)
-8. return _compute_recipe_costs(session, recipes, line_counts)
-```
+Drives the GET /produccion/print endpoint through the `authed_client` TestClient fixture. The handler reuses `plan_production()` + `completions_for_date()` from the day-view, then walks each plan row to build `print_rows`: the positive-qty happy path, the qty=0 / completion-present (kept) branch, the qty=0 / no-completion (skipped via `continue`) branch, the recipe_id IS NULL (recipe is None, yield_qty / yield_unit / portion_label all None) branch, the qty=0 + completion-present path (which keeps the row in the main loop rather than the ad-hoc loop), the `for day_idx in range(days)` multi-day pack loop (asserted via 3 consecutive ISO dates in the body), the `?mode=worksheet` query-param parse, and the `?shift_saved=1` query-param parse. The seed uses `tests/factories.make_ingredient / make_recipe / make_product / ing_line` for the standard catalog preamble and a `ProductionPlanOverride` row per product (with the anchored test date `_ANCLA = 2026-10-09`) so `plan_production()` returns deterministic qty values rather than the auto-forecast fallback.
 
-`app/rms/sales/lifecycle.py:batch_recipes_cost` is now a thin re-export: `from app.rms.profitability.cost import batch_recipes_cost` plus the new entry in the `__all__` list. All other lifecycle.py imports (`Session`, `select`, `Recipe`, `RecipeLine`, `Ingredient`) are still used elsewhere in the file. `lifecycle.batch_recipes_cost is cost.batch_recipes_cost` is `True`, so `tests/test_profitability_sales_split.py::test_packages_exist` (the only test that imports `batch_recipes_cost` via `app.rms.profitability.cost`) keeps passing — and the duplicate CC-18 function in lifecycle.py is gone.
+### (2) `scripts/reclassify_sale_channels.py:reclassify` — CC 22 (radon D-grade)
 
-**Verification**:
+12 scenarios: `missing_csv_raises_filenotfound`, `empty_csv_zero_stats`, `all_mostrador_skipped`, `single_retail_row_normalized`, `mixed_mostrador_retail_other`, `unparseable_date_dropped_from_updates`, `py_format_thousands_separator`, `us_format_comma_decimal_sep`, `dry_run_no_db_writes`, `apply_updates_matching_sale_to_retail`, `apply_no_match_increments_unchanged`, `alt_header_channel_column`.
 
-- 132 tests pass across the 8 most directly-touching test files: `tests/test_profitability_sales_split.py` (5), `tests/test_costing.py` (16), `tests/test_costing_yield_labor.py` (8), `tests/test_prime_cost_batched.py` (5), `tests/test_recipe_polymorphic.py` (15), `tests/test_d_grade_helpers_batch9.py` (13), `tests/test_d_grade_helpers_batch10.py` (15), `tests/test_dashboard_analytics_sections.py` (12), `tests/test_qa_report_fixes.py` (18), `tests/test_qa_round1_user_journeys.py` (15), `tests/test_sazon_seed.py` (10). 75 of these touch `batch_recipes_cost` / `recipe_batch_cost_gs` / `recipe_unit_cost_gs` directly; the rest exercise the cost graph via the dashboard / recipes router call sites.
-- `uv run radon cc -s app/rms/profitability/cost.py`:
-  - `batch_recipes_cost` CC 18 → CC 7 (C → B, at the rule-40 ≤ 10 ceiling)
-  - 3 new helpers, all A or B grade (CC 2, 4, 9)
-  - no other functions in `cost.py` changed CC
-- `uv run radon cc -s app/rms/sales/lifecycle.py` — `batch_recipes_cost` no longer appears in the per-function table (it's now an imported symbol, not a local def). `apply_sale` (CC 10) and `void_sale` (CC 14) unchanged from the s3 batch-8 split.
-- `uv run python scripts/check_imports.py` — OK, no cycles, no arch violations
-- `uv run ruff check app/rms/profitability/cost.py app/rms/sales/lifecycle.py` — clean
-- `uv run ruff format --check app/rms/profitability/cost.py app/rms/sales/lifecycle.py` — already formatted
-- `from app.rms.profitability.cost import batch_recipes_cost; from app.rms.sales.lifecycle import batch_recipes_cost as sl; assert batch_recipes_cost is sl` — passes (same function object)
+Locks every branch of the VENTAS CSV → Channel-canonical → SQLAlchemy UPDATE pipeline. Each scenario writes a temp CSV, sets up a minimal Sale table in a temp SQLite (mirroring the schema used in `tests/test_reclassify_sale_channels.py::TestReclassifyEndToEnd` so a future SASKIA-204 follow-up can dedupe), monkeypatches `scripts.reclassify_sale_channels.make_engine` to point at the temp DB, then runs `reclassify` and asserts the returned stats + the DB state. The `FileNotFoundError` is asserted with `pytest.raises`; the dry-run / apply paths assert `stats["rows_updated"]`, `stats["rows_unchanged"]`, `stats["csv_rows_total"]`, `stats["csv_rows_skipped_mostrador"]`, `stats["csv_rows_to_reclassify"]`, and the per-row post-DB `channel` value. The Spanish-column-name fallback (`Canal de Venta` OR `channel`) is locked by the `alt_header_channel_column` scenario, the PY/US format decimal parser is locked by the `py_format_thousands_separator` + `us_format_comma_decimal_sep` scenarios, and the unparseable-date filter (`csv_updates = [u for u in csv_updates if u["sold_at"] is not None]`) is locked by the `unparseable_date_dropped_from_updates` scenario.
 
-**Helpers skipped** (already covered or out of scope):
+The `_ROWS_PRINT` (9 rows) and `_ROWS_RECLASSIFY` (12 rows) lists double as the row-count doc tests (`assert len(...) == 9` + `assert len(...) == 12`) so adding/removing a row forces a CHANGELOG note — same pattern as #174, #178, #179, #181, #184, #186, #189, #191, #192, #193.
 
-- `batch_products_cost_margin` (CC 17, C) and `recipe_unit_cost_gs` (CC 13, C) — both above the rule-40 ceiling but out of scope for this batch (C-grade by 1-2 notches above; will be a future s3 batch).
-- `apply_sale` (CC 10, B at the ceiling) — already split in s3 batch-8 (PR #190 / SASKIA-211aa).
-- `void_sale` (CC 14, C) — out of scope for this batch.
-- All other s1/s3 batches (margin_drift_all, _produccion_day_view, _pedido_resolve_customer / _pedido_persist_address_book_entry, sentry_before_send, _step_5_build_recipe_row, plan_production, forecast_restock, _restock_for_target, _resolve_target, compute_plan_accuracy, libro_ventas, batch_compute_prime_cost, import_benchmarks, _validate_workbook, _import_patch_ingredientes) — already covered in #179, #181, #182, #183, #184, #185, #186, #188, #189, #191.
+**Helpers skipped** (already covered in prior PRs or out of scope for this sweep):
 
-**Files changed**:
+- `libro_ventas` — already covered in #174 (batch 3)
+- `bank_list`, `shopping_list_index` — already covered in #178 (batch 4)
+- `margin_drift_all`, `from_workbook` — already covered in #179 (batch 5)
+- `_pedido_resolve_customer`, `_pedido_persist_address_book_entry` — already covered in #181 (batch 6)
+- `_step_5_build_recipe_row`, `_restock_for_target` — already covered in #184 (batch 7)
+- `plan_production`, `forecast_restock` — already covered in #186 (batch 8)
+- `compute_plan_accuracy`, `libro_ventas (re-pick)` — already covered in #189 (batch 9)
+- `batch_compute_prime_cost`, `import_benchmarks` — already covered in #191 (batch 10)
+- `_validate_workbook`, `_import_patch_ingredientes` — already covered in #192 (batch 11)
+- `fix_file`, `evidencia_importar` — already covered in #193 (batch 12)
+- `evidencia_importar` (CC 28), `_produccion_day_view` (CC 28), `produccion_shift_execute` (CC 27), `_seed_sales_90_days_of_realistic_data` (CC 26), `import_bank_transactions` (CC 21) — out of scope for s1 (subsequent batches or sibling sessions)
+- `verify_catalog_on_vps.main` (CC 22), `check_docs_quality.main` (CC 21) — have their own dedicated test files
+- `seed_packs_gen.main` (CC 28) — script entry point with its own CLI-test pattern; not parametrized branch coverage
 
-- `app/rms/profitability/cost.py` (+60 / -48) — orchestrator + 3 helpers
-- `app/rms/sales/lifecycle.py` (+1 / -47) — added `batch_recipes_cost` to the `from app.rms.profitability.cost import` block, added `"batch_recipes_cost"` to `__all__`, removed the duplicate function body
-- `CHANGELOG.md` (+1 entry at top)
-
-## 2026-10-13 — test(s1-batch11): parametrize _validate_workbook + _import_patch_ingredientes (CC 28 + 23, D-grade, +28 cases)
+**Verification**: `uv run rtk pytest tests/test_d_grade_helpers_batch13.py --no-cov` → 21 passed. `ruff check` + `ruff format --check`: clean.## 2026-10-13 — test(s1-batch11): parametrize _validate_workbook + _import_patch_ingredientes (CC 28 + 23, D-grade, +28 cases)
 
 **Scope**: `tests/test_d_grade_helpers_batch11.py` (new, ~825 lines). Continues the s1 batch-3/4/5/6/7/8/9/10 helper-coverage sweep (#174, #178, #179, #181, #184, #186, #189, #191). Picks the next 2 fresh D-grade offenders from `uv run scripts/check_complexity.py | grep '^ D cc=2[0-9]'` — `_validate_workbook` (CC 28, D-grade, `app/services/import_xlsx.py`) and `_import_patch_ingredientes` (CC 23, D-grade, `app/services/import_xlsx.py`). Both are in the same file and both are pure helpers (one takes an openpyxl Workbook, the other a Session + Workbook + ImportResult) — no FastAPI Request/Depends context needed.
 
