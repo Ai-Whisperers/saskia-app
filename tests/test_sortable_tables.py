@@ -123,6 +123,10 @@ def test_sortable_restores_from_url():
     assert "restoreSortState" in js
     assert "searchParams.get('sort')" in js
     assert "searchParams.get('dir')" in js
+    # Parked keys (no matching th) restore through the same sorter.
+    assert "data-sort-control" in js
+    assert "applyParkedSort" in js
+    assert "data-sort-field" in js
 
 
 def test_sortable_handles_no_sort_columns():
@@ -233,6 +237,8 @@ def test_pedidos_table_is_sortable():
     assert 'data-sort-key="customer"' in text
     assert 'data-sort-key="promised_at"' in text
     assert 'data-sort-key="total_gs"' in text
+    assert "data-sort-control" in text
+    assert "data-sort-field" in text
 
     # Check no-sort on checkbox and actions
     assert "data-no-sort" in text

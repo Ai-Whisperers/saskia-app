@@ -27,12 +27,8 @@
   </a>
 </div>
 
-{# ─────────────────────────────────────────────────────────────────────
-   UNIFIED FILTER RAIL — one cohesive sticky card, not three.
-   Search + state segmented tabs + period chips + CSV export all share
-   one row, saving ~200px of vertical real estate and unifying the
-   mental model: "this is the lens through which I'm viewing pedidos".
-   ───────────────────────────────────────────────────────────────────── #}
+{# Search + Pendientes / Terminados / Todos stay visible (daily lens).
+   Period chips and CSV sit one click away under Filtros. #}
 <div class="card pedidos-filter-bar"
      style="display: flex; gap: var(--space-3); align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 10; background: var(--color-surface); margin-bottom: var(--space-4);">
   <form method="get" action="/pedidos"
@@ -74,37 +70,41 @@
     {% endfor %}
   </nav>
 
-  {# Period chips — Hoy / Mañana · Esta semana · Viejos (replaces the 3 split cards) #}
-  <div class="period-chips"
-       role="group"
-       aria-label="Filtrar por período"
-       style="display: inline-flex; gap: var(--space-2);">
-    {% set period_opts = [
-        ("all",    "Todos",        "neutral"),
-        ("hoy_manana",          "Hoy / Mañana",  "danger"),
-        ("esta_semana",         "Esta semana",   "info"),
-        ("pendientes_viejos",   "Pendientes viejos", "warn"),
-      ] %}
-    {% for value, label, severity in period_opts %}
-    <button type="button"
-            class="btn btn-sm period-chip"
-            data-period="{{ value }}"
-            aria-pressed="{{ 'true' if value == 'all' else 'false' }}">
-      {{ label }}
-      <span class="badge badge-{{ severity }}" style="margin-left: var(--space-1);">
-        {{ groups[value]|length if value in groups else total_pedidos }}
-      </span>
-    </button>
-    {% endfor %}
-  </div>
+  <details class="reorder-menu">
+    <summary>Filtros</summary>
+    <div class="reorder-menu__panel" style="flex-direction: row; flex-wrap: wrap; align-items: center; gap: var(--space-2); min-width: 22rem;">
+      {# Period chips — Hoy / Mañana · Esta semana · Viejos #}
+      <div class="period-chips"
+           role="group"
+           aria-label="Filtrar por período"
+           style="display: inline-flex; gap: var(--space-2); flex-wrap: wrap;">
+        {% set period_opts = [
+            ("all",    "Todos",        "neutral"),
+            ("hoy_manana",          "Hoy / Mañana",  "danger"),
+            ("esta_semana",         "Esta semana",   "info"),
+            ("pendientes_viejos",   "Pendientes viejos", "warn"),
+          ] %}
+        {% for value, label, severity in period_opts %}
+        <button type="button"
+                class="btn btn-sm period-chip"
+                data-period="{{ value }}"
+                aria-pressed="{{ 'true' if value == 'all' else 'false' }}">
+          {{ label }}
+          <span class="badge badge-{{ severity }}" style="margin-left: var(--space-1);">
+            {{ groups[value]|length if value in groups else total_pedidos }}
+          </span>
+        </button>
+        {% endfor %}
+      </div>
 
-  <a href="/pedidos/export-csv?status_filter={{ status_filter }}&search={{ search }}"
-     class="btn btn-sm btn-ghost"
-     aria-label="Exportar pedidos a CSV"
-     style="margin-left: auto;">
-    <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
-    Exportar CSV
-  </a>
+      <a href="/pedidos/export-csv?status_filter={{ status_filter }}&search={{ search }}"
+         class="btn btn-sm btn-ghost"
+         aria-label="Exportar pedidos a CSV">
+        <svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg>
+        Exportar CSV
+      </a>
+    </div>
+  </details>
 </div>
 
 {# ─────────────────────────────────────────────────────────────────────
@@ -150,20 +150,16 @@
     <a href="#" id="bulk-link" class="btn btn-sm btn-ghost">🔗 Enlace</a>
   </div>
 
-  <div class="table-sticky-wrap"
+  <div class="table-sticky-wrap pedidos-list"
        style="max-height: 70vh; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius);">
     <table class="table is-hoverable is-striped sortable" style="margin-bottom: 0;">
       <thead>
         <tr>
           <th style="width: 2rem;" data-no-sort><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
-          <th data-sort-key="status">Estado</th>
           <th data-sort-key="customer">Cliente</th>
           <th data-sort-key="promised_at">Fecha prometida</th>
-          <th data-sort-key="channel">Canal</th>
-          <th data-sort-key="payment">Pago</th>
-          <th class="num" data-sort-key="lines">Líneas</th>
-          <th class="num" data-sort-key="total_gs">Total</th>
-          <th class="actions" data-no-sort>Acciones</th>
+          <th data-sort-key="status">Estado</th>
+          <th data-no-sort>Ver detalles</th>
         </tr>
       </thead>
       <tbody id="pedidos-tbody">
@@ -176,19 +172,6 @@
           <td style="width: 2rem;">
             {% if p.status == 'pending' %}
             <input type="checkbox" name="pedido_ids" value="{{ p.id }}" class="pedido-check" aria-label="Seleccionar pedido {{ p.customer_name }}">
-            {% endif %}
-          </td>
-          <td>
-            {% if p.status == "pending" %}
-              {{ ui.status_pill("Pendiente",   sev="warn") }}
-            {% elif p.status == "confirmed" %}
-              {{ ui.status_pill("Confirmado",  sev="info") }}
-            {% elif p.status == "ready" %}
-              {{ ui.status_pill("Listo",       sev="ok") }}
-            {% elif p.status == "fulfilled" %}
-              <span class="badge badge-good">Entregado</span>
-            {% elif p.status == "cancelled" %}
-              {{ ui.status_pill("Cancelado",   sev="neutral") }}
             {% endif %}
           </td>
           <td data-copy="{{ p.id }}">
@@ -208,38 +191,78 @@
             {% endif %}
           </td>
           <td>
-            <span class="badge badge-neutral">{{ p.channel }}</span>
+            <div style="display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap;">
+              {% if p.status == "pending" %}
+                {{ ui.status_pill("Pendiente",   sev="warn") }}
+              {% elif p.status == "confirmed" %}
+                {{ ui.status_pill("Confirmado",  sev="info") }}
+              {% elif p.status == "ready" %}
+                {{ ui.status_pill("Listo",       sev="ok") }}
+              {% elif p.status == "fulfilled" %}
+                <span class="badge badge-good">Entregado</span>
+              {% elif p.status == "cancelled" %}
+                {{ ui.status_pill("Cancelado",   sev="neutral") }}
+              {% endif %}
+              <a href="/pedidos/{{ p.id }}/fulfill" class="btn btn-sm btn-primary js-confirm"
+                 data-confirm-title="¿Cumplir pedido?" data-confirm-body="Marcá este pedido como entregado.">Cumplir</a>
+            </div>
           </td>
-          <td><small class="text-muted">{{ p.payment_method or '—' }}</small></td>
-          <td class="num">{{ p.n_lines }}</td>
-          <td class="num"><strong>{{ m.gs(p.total_gs) }}</strong></td>
-          {# Phase 14 (2026-10-01): ventana hint as a badge on the list
-             view so the cashier can see at a glance which pedidos need a
-             scheduled handoff vs ASAP. #}
-          <td class="ventana-col">
-            {% set vt = p.ventana_text or '' %}
-            {% if vt and vt != 'Lo antes posible' %}
-              <span class="badge badge-warn" title="Ventana preferida">{{ vt|truncate(28) }}</span>
-            {% elif vt == 'Lo antes posible' %}
-              <span class="badge badge-neutral">ASAP</span>
-            {% endif %}
-          </td>
-          <td class="actions">
-            <a href="/pedidos/{{ p.id }}" class="btn btn-sm">Ver</a>
-            <a href="/pedidos/{{ p.id }}/fulfill" class="btn btn-sm btn-primary js-confirm"
-               data-confirm-title="¿Cumplir pedido?" data-confirm-body="Marcá este pedido como entregado.">Cumplir</a>
-            <a href="/pedidos/{{ p.id }}/cancel" class="btn btn-sm btn-ghost js-confirm"
-               data-confirm-title="¿Cancelar pedido?" data-confirm-body="Esta acción no se puede deshacer."
-               data-confirm-danger="true">Cancelar</a>
-            <a href="/pedidos/{{ p.id }}/compartir" class="btn btn-sm btn-ghost"
-               title="Compartir enlace público">🔗</a>
+          <td>
+            <details class="row-meta-details">
+              <summary>Ver detalles</summary>
+              <div class="inv-list__panel">
+                {# Parked sorts stay one click away. The sorter binds these buttons. #}
+                <div class="inv-list__sorts">
+                  <button type="button" class="th-sort" data-sort-control data-sort-key="channel" aria-label="Ordenar por Canal">Canal</button>
+                  <button type="button" class="th-sort" data-sort-control data-sort-key="payment" aria-label="Ordenar por Pago">Pago</button>
+                  <button type="button" class="th-sort" data-sort-control data-sort-key="lines" aria-label="Ordenar por Líneas">Líneas</button>
+                  <button type="button" class="th-sort" data-sort-control data-sort-key="total_gs" aria-label="Ordenar por Total">Total</button>
+                </div>
+                <div class="inv-list__field" data-sort-field="channel" data-sort-value="{{ p.channel or '' }}">
+                  <span class="inv-list__label">Canal</span>
+                  <span class="badge badge-neutral">{{ p.channel }}</span>
+                </div>
+                <div class="inv-list__field" data-sort-field="payment" data-sort-value="{{ p.payment_method or '' }}">
+                  <span class="inv-list__label">Pago</span>
+                  <small class="text-muted">{{ p.payment_method or '—' }}</small>
+                </div>
+                <div class="inv-list__field" data-sort-field="lines" data-sort-value="{{ p.n_lines }}">
+                  <span class="inv-list__label">Líneas</span>
+                  <span class="num">{{ p.n_lines }}</span>
+                </div>
+                <div class="inv-list__field" data-sort-field="total_gs" data-sort-value="{{ p.total_gs }}">
+                  <span class="inv-list__label">Total</span>
+                  <strong>{{ m.gs(p.total_gs) }}</strong>
+                </div>
+                {# Phase 14: ventana hint stays reachable for scheduled handoff vs ASAP. #}
+                {% set vt = p.ventana_text or '' %}
+                {% if vt %}
+                <div class="inv-list__field ventana-col">
+                  <span class="inv-list__label">Ventana</span>
+                  {% if vt != 'Lo antes posible' %}
+                    <span class="badge badge-warn" title="Ventana preferida">{{ vt|truncate(28) }}</span>
+                  {% else %}
+                    <span class="badge badge-neutral">ASAP</span>
+                  {% endif %}
+                </div>
+                {% endif %}
+                <div class="inv-list__actions">
+                  <span class="inv-list__label">Acciones</span>
+                  <a href="/pedidos/{{ p.id }}" class="btn btn-sm">Ver</a>
+                  <a href="/pedidos/{{ p.id }}/cancel" class="btn btn-sm btn-ghost js-confirm"
+                     data-confirm-title="¿Cancelar pedido?" data-confirm-body="Esta acción no se puede deshacer."
+                     data-confirm-danger="true">Cancelar</a>
+                  <a href="/pedidos/{{ p.id }}/compartir" class="btn btn-sm btn-ghost"
+                     title="Compartir enlace público">🔗</a>
+                </div>
+              </div>
+            </details>
           </td>
         </tr>
           {% endfor %}
         {% endfor %}
       </tbody>
     </table>
-    </div>
   </div>
 
   {% if pagination.total_count > 0 %}

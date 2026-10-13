@@ -61,31 +61,50 @@
 
 <h2 class="form-section-title">Sesiones recientes</h2>
 <div class="table-sticky-wrap" style="max-height:min(70vh,520px);">
-<table style="border-collapse:collapse;max-width:720px;">
+<table class="table is-hoverable is-striped mb-0 ops-list caja-list">
   <thead>
     <tr>
-      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Apertura</th>
-      <th class="text-left" style="padding:4px 10px;border-bottom:1px solid var(--border);">Cierre</th>
-      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Apertura</th>
-      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Esperado</th>
-      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Contado</th>
-      <th class="text-right" style="padding:4px 10px;border-bottom:1px solid var(--border);">Diferencia</th>
-      <th style="padding:4px 10px;border-bottom:1px solid var(--border);"></th>
+      <th>
+        <div class="ops-list__l1">
+          <span class="caja-list__when">Apertura</span>
+          <span class="caja-list__cierre">Cierre</span>
+          <span class="ops-list__details">Ver detalles</span>
+        </div>
+      </th>
     </tr>
   </thead>
   <tbody>
     {% for s in recent %}
     <tr>
-      <td style="padding:4px 10px;">{{ s.opened_at.strftime('%d/%m %H:%M') }} · {{ s.opened_by }}</td>
-      <td style="padding:4px 10px;">{% if s.closed_at %}{{ s.closed_at.strftime('%d/%m %H:%M') }}{% else %}<strong>abierta</strong>{% endif %}</td>
-      <td style="padding:4px 10px;">{{ money(s.opening_gs) }}</td>
-      <td style="padding:4px 10px;">{{ money(s.expected_gs) }}</td>
-      <td style="padding:4px 10px;">{{ money(s.counted_gs) }}</td>
-      <td style="padding:4px 10px;color:{% if s.diff_gs and s.diff_gs != 0 %}var(--destructive, #b91c1c){% else %}var(--success, #15803d){% endif %};">
-        {{ money(s.diff_gs) }}
-      </td>
-      <td style="padding:4px 10px;text-align:center;">
-        {% if s.status == 'closed' %}<a href="/caja/z/{{ s.id }}">Z</a>{% endif %}
+      <td>
+        <div class="ops-list__l1">
+          <div class="caja-list__when">{{ s.opened_at.strftime('%d/%m %H:%M') }} · {{ s.opened_by }}</div>
+          <div class="caja-list__cierre">{% if s.closed_at %}{{ s.closed_at.strftime('%d/%m %H:%M') }}{% else %}<strong>abierta</strong>{% endif %}</div>
+          <details class="row-meta-details ops-list__details">
+            <summary>Ver detalles</summary>
+            <div class="inv-list__panel">
+              <div class="inv-list__field">
+                <span class="inv-list__label">Apertura</span>
+                <span class="ops-list__num">{{ money(s.opening_gs) }}</span>
+              </div>
+              <div class="inv-list__field">
+                <span class="inv-list__label">Esperado</span>
+                <span class="ops-list__num">{{ money(s.expected_gs) }}</span>
+              </div>
+              <div class="inv-list__field">
+                <span class="inv-list__label">Contado</span>
+                <span class="ops-list__num">{{ money(s.counted_gs) }}</span>
+              </div>
+              <div class="inv-list__field">
+                <span class="inv-list__label">Diferencia</span>
+                <span class="ops-list__num" style="color:{% if s.diff_gs and s.diff_gs != 0 %}var(--destructive, #b91c1c){% else %}var(--success, #15803d){% endif %};">{{ money(s.diff_gs) }}</span>
+              </div>
+              <div class="inv-list__actions">
+                {% if s.status == 'closed' %}<a href="/caja/z/{{ s.id }}">Z</a>{% endif %}
+              </div>
+            </div>
+          </details>
+        </div>
       </td>
     </tr>
     {% endfor %}

@@ -671,6 +671,17 @@ summary:focus-visible {
   background: var(--color-surface);
   text-decoration: none;
 }
+.more-menu__panel form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+}
+.more-menu__block {
+  padding: 8px 10px;
+  border-top: 1px solid var(--color-border);
+  font-size: 0.8125rem;
+}
 
 .kitchen-page .empty-state-cold-start,
 .kitchen-page .kitchen-dup-empty {
@@ -694,6 +705,25 @@ summary:focus-visible {
   padding-left: 0 !important;
   padding-right: 0 !important;
   position: static !important;
+}
+.pedidos-filter-bar .reorder-menu__panel {
+  right: 0;
+  left: auto;
+  max-width: min(40rem, calc(100vw - 2rem));
+}
+.pedidos-list .row-meta-details > summary,
+.kds-card .row-meta-details > summary,
+.order-card .row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.pedidos-list .inv-list__panel,
+.kds-card .inv-list__panel,
+.order-card .inv-list__panel {
+  margin-top: 0.75rem;
 }
 .grid .card.is-interactive .icon-lg {
   width: 18px;
@@ -1216,4 +1246,445 @@ form ui-date {
   }
   .quick-sell-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
   .quick-sell-btn .qs-price { opacity: 1; position: static; height: auto; background: transparent; color: var(--color-accent); }
+}
+
+/* Inventario list: L1 is name, stock, cost, and alert. The disclosure
+   uses display:contents only while open so the parked columns sit on the
+   next grid row instead of inside the last column (the sticky scroller
+   would clip an absolutely positioned popover). */
+.inv-list__l1 {
+  display: grid;
+  grid-template-columns: minmax(12rem, 2.4fr) minmax(7.5rem, 1fr) minmax(8.5rem, 1.1fr) auto minmax(6.75rem, auto);
+  column-gap: 1rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+.inv-list__stock,
+.inv-list__price { text-align: right; font-variant-numeric: tabular-nums; }
+.inv-list__details { grid-column: 5; grid-row: 1; justify-self: end; }
+.inv-list__details.row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.inv-list__details[open] { display: contents; }
+.inv-list__details[open] > summary { grid-column: 5; grid-row: 1; justify-self: end; }
+.inv-list__details[open] > .inv-list__panel {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}
+.inv-list__panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: flex-start;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+}
+.inv-list__sorts,
+.inv-list__tags,
+.inv-list__actions { flex: 1 1 100%; }
+.inv-list__sorts,
+.inv-list__actions { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+.inv-list__sorts button.th-sort {
+  font: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+.inv-list__field { min-width: 10rem; }
+.inv-list__label {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.inv-list thead .inv-list__l1 > :last-child { justify-self: end; }
+
+/* Productos (6) and clientes (5): L1 stays one line; Ver detalles spans the row.
+   The disclosure ends on the last track (span 1 / -1). applyProductListTracks
+   drops a hidden Nombre, Precio, or Disponible track so that last line moves
+   with the cells that remain. */
+.product-list { --catalog-cols: 2rem minmax(12rem, 2.2fr) minmax(6.5rem, 0.9fr) auto auto minmax(6.5rem, auto); }
+.client-list { --catalog-cols: 2rem minmax(10rem, 1.8fr) minmax(8rem, 1fr) auto minmax(6.5rem, auto); }
+.catalog-list__l1 {
+  display: grid;
+  grid-template-columns: var(--catalog-cols);
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+.catalog-list__price,
+.catalog-list__phone { text-align: right; font-variant-numeric: tabular-nums; }
+.catalog-list__details { grid-column: span 1 / -1; grid-row: 1; justify-self: end; }
+.catalog-list__details.row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+/* display:contents on <details> only promotes <summary> here, so the panel
+   collapses into the first grid column. Keep the open disclosure as the
+   grid item that spans the row. */
+.catalog-list__details[open] {
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: stretch;
+  min-width: 0;
+}
+.catalog-list__details[open] > summary { display: block; text-align: right; margin-bottom: 0.35rem; }
+.catalog-list__details[open] > .inv-list__panel { width: 100%; }
+.catalog-list .inv-list__field {
+  min-width: 8rem;
+  max-width: 16rem;
+  overflow-wrap: anywhere;
+}
+.catalog-list thead .catalog-list__l1 > :last-child { justify-self: end; }
+@media (max-width: 640px) {
+  .catalog-list__l1 { grid-template-columns: 2rem minmax(0, 1fr) auto; }
+  .catalog-list__name { grid-column: 2; grid-row: 1; }
+  .catalog-list__price,
+  .catalog-list__phone { grid-column: 3; grid-row: 1; text-align: right; }
+  .catalog-list__disp,
+  .catalog-list__tier { grid-column: 2; grid-row: 2; }
+  .catalog-list__edit { grid-column: 3; grid-row: 2; justify-self: end; }
+  .catalog-list__details,
+  .catalog-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .catalog-list__details[open] > summary,
+  .catalog-list__details[open] > .inv-list__panel { grid-column: auto; grid-row: auto; width: 100%; }
+  .catalog-list thead .catalog-list__l1 > .catalog-list__details { justify-self: stretch; }
+}
+
+/* Producción day plan: Listo, producto, lote, hecho. Parked fields span the row. */
+.prod-day__l1 {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(10rem, 2.2fr) minmax(4.5rem, 0.7fr) minmax(8.5rem, 1.2fr) auto;
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+.prod-day__lote,
+.prod-day__hecho { text-align: right; font-variant-numeric: tabular-nums; }
+.prod-day__lote .meta-cell { font-size: 0.75rem; color: var(--color-text-muted); }
+.prod-day__details { grid-column: 5; grid-row: 1; justify-self: end; }
+.prod-day__details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.prod-day__details[open] { display: contents; }
+.prod-day__details[open] > summary { grid-column: 5; grid-row: 1; justify-self: end; }
+.prod-day__details[open] > .prod-day__panel { grid-column: 1 / -1; grid-row: 2; }
+.prod-day__panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  align-items: flex-start;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border);
+  text-align: left;
+}
+.prod-day__sorts { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
+.prod-day__field { min-width: 8rem; }
+.prod-day__label {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+.production-table thead .prod-day__l1 > :last-child { justify-self: end; }
+.prod-haccp-warn {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 4px solid var(--color-danger, #dc2626);
+  background: var(--color-danger-soft, rgba(220, 38, 38, 0.08));
+  font-weight: 600;
+}
+@media (max-width: 640px) {
+  #shift-form table.production-table tbody td { display: block; text-align: left; }
+  /* Thead is hidden here, and data-label lives on the inner divs, so the
+     old td::before captions no longer apply. Listo, Lote, and Hecho get
+     their own captions below. Producto stays unlabeled: the name is the row. */
+  #shift-form table.production-table tbody td::before { content: none; }
+  .prod-day__l1 { grid-template-columns: 1fr 1fr; }
+  /* Pin every L1 slot. A spanning product name lands on row 2, and the
+     open panel's desktop rule is also grid-row: 2, so without these rows
+     the detail fields paint on top of the product. */
+  .prod-day__l1 > [data-label="Listo"] { grid-column: 1; grid-row: 1; text-align: left; }
+  .prod-day__lote { grid-column: 2; grid-row: 1; text-align: left; }
+  .prod-day__name,
+  .prod-day__l1 .product-name { grid-column: 1 / -1; grid-row: 2; }
+  .prod-day__hecho { grid-column: 1 / -1; grid-row: 3; text-align: left; }
+  .prod-day__details {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-self: start;
+  }
+  /* display:contents only promotes <summary>. The panel then sits in
+     column 1, which is also the product name's row, so the fields cover
+     the name. Keep the open <details> as the grid item under the L1 row. */
+  .prod-day__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 4;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .prod-day__details[open] > .prod-day__panel {
+    grid-column: auto;
+    grid-row: auto;
+    width: 100%;
+  }
+  .prod-day__l1 > [data-label="Listo"]::before,
+  .prod-day__lote::before,
+  .prod-day__hecho::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 0.15rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    color: var(--color-text-muted, #6b7280);
+  }
+}
+
+/* Historial Filtros sits on the right of the toolbar, so the panel opens inward. */
+.sale-history-toolbar .reorder-menu__panel {
+  right: 0;
+  left: auto;
+  max-width: min(32rem, calc(100vw - 2rem));
+}
+
+/* Historial: Fecha, producto, total, Ver / Anular. Ver detalles spans the row. */
+.sale-list__l1 {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 0.9fr) minmax(10rem, 1.8fr) minmax(6.5rem, 0.85fr) auto minmax(6.75rem, auto);
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+.sale-list__total { text-align: right; font-variant-numeric: tabular-nums; }
+.sale-list__actions { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: flex-end; }
+.sale-list__details { grid-column: span 1 / -1; grid-row: 1; justify-self: end; }
+.sale-list__details.row-meta-details { display: block; position: static; }
+.sale-list__details.row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.sale-list__details[open] {
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: stretch;
+  min-width: 0;
+}
+.sale-list__details[open] > summary { display: block; text-align: right; margin-bottom: 0.35rem; }
+.sale-list__details[open] > .inv-list__panel { width: 100%; }
+.sale-list thead .sale-list__l1 > :last-child { justify-self: end; }
+.sale-list .inv-list__field {
+  min-width: 8rem;
+  max-width: 16rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .sale-list__l1 { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) auto; }
+  .sale-list__fecha { grid-column: 1; grid-row: 1; }
+  .sale-list__producto { grid-column: 2; grid-row: 1; }
+  .sale-list__total { grid-column: 3; grid-row: 1; text-align: right; }
+  .sale-list__actions { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
+  .sale-list__details,
+  .sale-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .sale-list__details[open] > summary,
+  .sale-list__details[open] > .inv-list__panel { grid-column: auto; grid-row: auto; width: 100%; }
+  .sale-list thead .sale-list__l1 > .sale-list__details { justify-self: stretch; }
+}
+.sale-list tfoot .sale-list__qty-sum {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+@media print {
+  .sale-list details.sale-list__details {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .sale-list details.sale-list__details::details-content {
+    content-visibility: visible;
+    display: block;
+  }
+  .sale-list details.sale-list__details > .inv-list__panel {
+    display: flex !important;
+    width: 100%;
+  }
+}
+
+.sale-detail__lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin: 0.25rem 0 1rem;
+}
+.sale-detail__total {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sale-detail__what { font-size: 1.05rem; }
+.sale-detail__more { margin: 0.25rem 0 1rem; }
+.sale-detail__more > summary {
+  cursor: pointer;
+  width: fit-content;
+  font-size: 0.95rem;
+  color: var(--color-text-link);
+}
+.sale-detail__more > summary::-webkit-details-marker { display: none; }
+.sale-detail__panel { margin-top: 0.75rem; }
+
+/* Ops lists: proveedores, movimientos, caja sessions, banco, fiado.
+   Closed Ver detalles sits on the last track. Open, it is the full-width
+   second row. The panel stays inside the details; display:contents would
+   leave it in the first column. At 640px the disclosure does not share
+   a row with the L1 fields. Print shows the parked panel. */
+.supplier-list { --ops-cols: minmax(10rem, 2fr) minmax(8rem, 1fr) minmax(6.75rem, auto); }
+.move-list { --ops-cols: minmax(8.5rem, 1.1fr) minmax(7rem, 0.9fr) minmax(5.5rem, 0.7fr) minmax(6.75rem, auto); }
+.caja-list { --ops-cols: minmax(10rem, 1.6fr) minmax(8rem, 1fr) minmax(6.75rem, auto); }
+.bank-list { --ops-cols: minmax(7rem, 0.8fr) minmax(6.5rem, 0.7fr) minmax(14rem, 1.8fr) minmax(6.75rem, auto); }
+.fiado-list { --ops-cols: minmax(10rem, 1.6fr) minmax(7rem, 0.8fr) auto minmax(6.75rem, auto); }
+.ops-list__l1 {
+  display: grid;
+  grid-template-columns: var(--ops-cols);
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+.ops-list__num { text-align: right; font-variant-numeric: tabular-nums; }
+.ops-list__details { grid-column: span 1 / -1; grid-row: 1; justify-self: end; }
+.ops-list__details.row-meta-details { display: block; position: static; }
+.ops-list__details.row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.ops-list__details[open] {
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: stretch;
+  min-width: 0;
+}
+.ops-list__details[open] > summary { display: block; text-align: right; margin-bottom: 0.35rem; }
+.ops-list__details[open] > .inv-list__panel { width: 100%; }
+.ops-list thead .ops-list__l1 > :last-child { justify-self: end; }
+.ops-list .inv-list__field {
+  min-width: 8rem;
+  max-width: 16rem;
+  overflow-wrap: anywhere;
+}
+.bank-list__conc .d-inline-flex { flex-wrap: wrap; }
+/* table-wrap sticks thead cells topnav-height below the scroller, which
+   paints the header over the first row. These lists scroll inside the wrap. */
+.table-wrap .ops-list thead th,
+.table-sticky-wrap .ops-list thead th { top: 0; }
+@media (max-width: 640px) {
+  .supplier-list .ops-list__l1,
+  .caja-list .ops-list__l1 { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); }
+  .supplier-list__name,
+  .caja-list__when { grid-column: 1; grid-row: 1; }
+  .supplier-list__phone,
+  .caja-list__cierre { grid-column: 2; grid-row: 1; }
+  .supplier-list .ops-list__details,
+  .supplier-list .ops-list__details[open],
+  .caja-list .ops-list__details,
+  .caja-list .ops-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .move-list .ops-list__l1,
+  .bank-list .ops-list__l1,
+  .fiado-list .ops-list__l1 { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) auto; }
+  .move-list__fecha,
+  .bank-list__fecha,
+  .fiado-list__cliente { grid-column: 1; grid-row: 1; }
+  .move-list__tipo,
+  .bank-list__importe,
+  .fiado-list__saldo { grid-column: 2; grid-row: 1; }
+  .move-list__qty,
+  .fiado-list__estado { grid-column: 3; grid-row: 1; }
+  .bank-list__conc { grid-column: 1 / -1; grid-row: 2; }
+  .move-list .ops-list__details,
+  .move-list .ops-list__details[open],
+  .fiado-list .ops-list__details,
+  .fiado-list .ops-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .bank-list .ops-list__details,
+  .bank-list .ops-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .ops-list__details[open] > summary,
+  .ops-list__details[open] > .inv-list__panel { grid-column: auto; grid-row: auto; width: 100%; }
+  .ops-list thead .ops-list__l1 > .ops-list__details { justify-self: stretch; }
+}
+@media print {
+  .ops-list details.ops-list__details {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .ops-list details.ops-list__details::details-content {
+    content-visibility: visible;
+    display: block;
+  }
+  .ops-list details.ops-list__details > .inv-list__panel {
+    display: flex !important;
+    width: 100%;
+  }
 }
