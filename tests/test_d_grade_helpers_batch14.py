@@ -933,7 +933,7 @@ def test_seed_sales_90_days_branches(
     helper uses `random.Random(43)` internally for the sales loop,
     so outputs are deterministic for a given seed + scenario.
     """
-    ctx, sf, prod_a, prod_b, ing_a = _build_seed_sales_ctx(row, session_factory, request)
+    ctx, sf, prod_a, _prod_b, _ing_a = _build_seed_sales_ctx(row, session_factory, request)
 
     # Payday-on-weekend overlay: we need a Sunday that ALSO lands
     # on day 1 or day 15. 2026-02-15 is a Sunday. Override the
@@ -954,7 +954,7 @@ def test_seed_sales_90_days_branches(
         from app.rms.models import Sale, StockMovement
 
         all_sales = s.query(Sale).all()
-        all_sms = s.query(StockMovement).filter(StockMovement.movement_type == "sale").all()
+        s.query(StockMovement).filter(StockMovement.movement_type == "sale").all()
         report_sales = int(ctx.report.sales)
         report_sms = int(ctx.report.stock_movements)
     finally:
