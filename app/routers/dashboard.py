@@ -920,6 +920,9 @@ def _check_cierre_ayer(session, yesterday_d) -> bool:
     try:
         return not completions_for_date(session, yesterday_d)
     except Exception:
+        # Defensive probe — return False (no missing production) rather than
+        # failing the operator-facing "yesterday was completed" badge.
+        logger.debug("eod completions probe failed", exc_info=True)
         return False
 
 

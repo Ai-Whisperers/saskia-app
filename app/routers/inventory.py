@@ -395,6 +395,9 @@ def _compute_stock_value(session: Session, all_ings: list) -> float:
     try:
         return stock_value_gs(session)
     except Exception:
+        # Defensive — stock_value_gs may use a column not present on older
+        # DBs; fall through to the sum-of-stock loop rather than 500'ing.
+        logger.debug("stock_value_gs fallback (older schema?)", exc_info=True)
         return sum((i.stock_qty or 0) * (i.purchase_price_gs or 0) for i in all_ings)
 
 
@@ -1396,6 +1399,9 @@ def _price_stats_safe(session: Session, ing_id: int) -> object:
 
         return price_stats(session, ing_id, days=90)
     except Exception:
+        # Price history is optional — return None so the UI hides the panel
+        # on a fresh DB without 500'ing the edit form.
+        logger.debug("price_stats fallback for ing_id={}", ing_id, exc_info=True)
         return None
 
 

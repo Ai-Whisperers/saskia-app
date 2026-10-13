@@ -164,6 +164,9 @@ def eod_view(
         _anomalies = detect_anomalies(session)
         anomaly_count = len(_anomalies) if _anomalies else 0
     except Exception:
+        # Defensive — if the anomaly helper isn't available in this version,
+        # skip silently and report zero anomalies rather than crashing the page.
+        logger.debug("detect_anomalies fallback (helper unavailable?)", exc_info=True)
         anomaly_count = 0
 
     if range_start and range_end and range_end >= range_start:
@@ -229,6 +232,9 @@ def eod_view(
         _anomalies = detect_anomalies(session, eod_cfg=eod_cfg)
         anomaly_count = len(_anomalies) if _anomalies else 0
     except Exception:
+        # Defensive — anomaly helper + eod_config pair may not be wired on
+        # older deploys; report zero rather than failing the EOD summary.
+        logger.debug("detect_anomalies (with config) fallback", exc_info=True)
         anomaly_count = 0
 
     return render(
@@ -576,6 +582,7 @@ def eod_print(
         anomaly_count = len(anomalies) if anomalies else 0
     except Exception:
         # If the anomaly helper isn't available in this version, skip silently
+        logger.debug("detect_anomalies fallback in eod_print", exc_info=True)
         anomaly_count = 0
 
     return render(

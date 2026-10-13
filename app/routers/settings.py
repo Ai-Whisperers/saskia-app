@@ -93,6 +93,9 @@ def _safe_get_user(session: object, user_id: object) -> object:
     try:
         return session.get(User, user_id)
     except Exception:
+        # Defensive — non-integer / foreign-id lookups return None rather
+        # than crashing template rendering on the user-badge.
+        logger.debug("user lookup fallback for id={}", user_id, exc_info=True)
         return None
 
 

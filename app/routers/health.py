@@ -57,6 +57,7 @@ def _get_last_backup_at(request: Request) -> str | None:
     except Exception:
         # On any DB error we report "no backup" rather than failing the
         # endpoint. The /healthz/db endpoint already surfaces DB issues.
+        logger.debug("health: backup timestamp lookup fallback", exc_info=True)
         return None
 
 
@@ -202,6 +203,10 @@ def _check_r2_reachable(timeout: float = 2.0) -> bool:
         client.head_bucket(Bucket=settings.bucket)  # type: ignore[attr-defined]
         return True
     except Exception:
+        # Defensive — R2/boto3 head_bucket failure means creds or bucket
+        # is broken; report False here, the /healthz/r2 endpoint surfaces
+        # the full error chain with detail.
+        logger.debug("R2 head_bucket probe failed", exc_info=True)
         return False
 
 
@@ -288,6 +293,9 @@ def healthz_depth(request: Request) -> JSONResponse:
             "used_pct": round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0,
         }
     except Exception as disk_exc:  # pragma: no cover - defensive
+        # Disk usage probe — shutil.disk_usage fails on unwalkable paths.
+        # Report ok=False with the error repr so /healthz surfaces it.
+        logger.debug("disk usage probe failed: {}", repr(disk_exc), exc_info=True)
         disk = {"ok": False, "error": repr(disk_exc), "path": str(DATA_DIR)}
 
     # --- r2 (best-effort HEAD probe; 3s timeout) ---
@@ -306,6 +314,9 @@ def healthz_depth(request: Request) -> JSONResponse:
                 r2["status"] = resp.status
                 r2["ok"] = 200 <= resp.status < 400
         except Exception as r2_exc:
+            # R2 HEAD probe — urllib.urlopen failure means DNS, TLS, or
+            # bucket reachability issue. Log + report ok=False.
+            logger.warning("R2 HEAD probe failed: {}", repr(r2_exc)[:200], exc_info=True)
             r2["ok"] = False
             r2["error"] = repr(r2_exc)[:200]
 
@@ -431,6 +442,10 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
         try:
             pkgs[pkg] = md.version(pkg)
         except Exception:
+            # Package version probe — importlib.metadata.version fails when
+            # the package is not installed in this venv. Surface as
+            # "NOT INSTALLED" rather than 500'ing the healthz page.
+            logger.debug("health: package version probe failed for {}", pkg, exc_info=True)
             pkgs[pkg] = "NOT INSTALLED"
 
     # --- Supabase reachability ---
@@ -474,6 +489,9 @@ def healthz_deps(request: Request) -> JSONResponse | dict:
         free_gb = usage.free / (1024**3)
         used_pct = round(100.0 * usage.used / usage.total, 1) if usage.total else 0.0
     except OSError as exc:
+        # Disk usage probe — OSError (e.g. permission denied) means we
+        # can't compute usage; report 503 with the error message.
+        logger.debug("health: disk usage probe OSError: {}", exc, exc_info=True)
         disk_block: dict = {"error": str(exc), "path": disk_root}
         total_gb = used_gb = free_gb = used_pct = 0  # for 503 logic below
     else:
@@ -572,6 +590,7 @@ def healthz_db(request: Request) -> JSONResponse:
             # Don't 503 the whole endpoint — DB is reachable, the metadata
             # queries aren't. Surface the detail so the operator can tell
             # the difference between "DB down" and "audit table missing".
+            logger.debug("health: db metadata probe failed: {}", inner_exc, exc_info=True)
             payload["db"] = "ok_no_metadata"
             payload["metadata_error"] = str(inner_exc)
             # Phase 14: still mark DB-up for /metrics even when metadata
@@ -585,6 +604,9 @@ def healthz_db(request: Request) -> JSONResponse:
         _set_db_up(True)
         return payload
     except Exception as exc:
+        # /healthz/db — any failure surfaces as a typed 503 with detail.
+        # /metrics gauge already gets set to False below.
+        logger.warning("health: db full probe failed: {}", exc, exc_info=True)
         from app.rms.metrics import set_db_up as _set_db_up
 
         _set_db_up(False)
@@ -617,6 +639,9 @@ def _summary_check_db(request: Request) -> dict[str, Any]:
                 else None,
             }
     except Exception as exc:
+        # /healthz/db probe — any failure surfaces as ok=False with detail.
+        # The route handler maps this to a typed 503 response.
+        logger.debug("health: db probe failed: {}", exc, exc_info=True)
         return {"ok": False, "detail": str(exc)[:200]}
 
 
@@ -656,6 +681,9 @@ def _summary_check_errors(request: Request) -> dict[str, Any]:
             )
         return {"ok": True, "last_1h": int(n_1h), "last_24h": int(n_24h)}
     except Exception as exc:
+        # /healthz/errors — SQL probe failure means we can't count 500s.
+        # Return ok=False so the route handler surfaces the error.
+        logger.debug("health: errors summary probe failed: {}", exc, exc_info=True)
         return {"ok": False, "detail": str(exc)[:200]}
 
 
@@ -722,6 +750,9 @@ def _summary_check_disk(request: Request) -> dict[str, Any]:
             "free_gb": round(u.free / 1024**3, 1),
         }
     except Exception as exc:
+        # /healthz/backup — DB_PATH disk probe failed; return ok=False so
+        # the route surfaces the error chain.
+        logger.warning("health: backup disk probe failed: {}", exc, exc_info=True)
         return {"ok": False, "detail": str(exc)[:200]}
 
 
@@ -921,6 +952,9 @@ def api_smoke_prod_loop(request: Request) -> JSONResponse:
             if not login_ok:
                 all_ok = False
         except Exception as exc:
+            # Smoke-test login probe — record the error in the steps
+            # payload so the operator sees what broke during the smoke.
+            logger.warning("health smoke: login probe failed: {}", repr(exc)[:200], exc_info=True)
             all_ok = False
             steps.append({"step": "POST /login", "ok": False, "error": repr(exc)[:200]})
 
@@ -949,6 +983,15 @@ def api_smoke_prod_loop(request: Request) -> JSONResponse:
                 if not ok:
                     all_ok = False
             except Exception as exc:
+                # Smoke-test route probe — record the error in the steps
+                # payload so the operator sees which route is unreachable.
+                logger.warning(
+                    "health smoke: route probe failed {} {}: {}",
+                    method,
+                    path,
+                    repr(exc)[:200],
+                    exc_info=True,
+                )
                 all_ok = False
                 steps.append(
                     {

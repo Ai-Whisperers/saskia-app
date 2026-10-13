@@ -22,6 +22,7 @@ from datetime import date, datetime, time, timedelta
 
 from fastapi import Depends, Query, Request
 from fastapi.responses import HTMLResponse
+from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
@@ -1033,7 +1034,37 @@ def _produccion_day_view(
     recipe_by_id = {
         r.id: r for r in (session.execute(select(Recipe).order_by(Recipe.name)).scalars().all())
     }
-    demand_by_pid = _step_14_load_demand_safe(session, target_date)
+    # T-2026-10-04 (C.5): RecipePricing lookup by recipe_id for inline
+    # cost/margin display on /produccion rows. The pricing table has
+    # cost_per_unit_gs + retail_gs; we join by recipe_id and surface
+    # both in plan_rows_view so the template can render "Gs X total
+    # cost, Y% margin" without a second round-trip.
+    # NOTE: we use raw SQL via text() to avoid importing the full
+    # models.sales module (which carries a deprecated SaleStockMove
+    # relationship forward-ref that breaks mapper config in tests).
+    from sqlalchemy import text as _sa_text
+
+    pricing_rows = session.execute(
+        _sa_text("SELECT recipe_id, cost_per_unit_gs, retail_gs FROM recipe_pricing")
+    ).all()
+    pricing_by_recipe_id = {
+        row.recipe_id: type(
+            "P", (), {"cost_per_unit_gs": row.cost_per_unit_gs, "retail_gs": row.retail_gs}
+        )()
+        for row in pricing_rows
+    }
+
+    # PRODUCCION-V2 cutover (2026-10-05): `ui` is always "v2", so
+    # demand is always populated. The try/except is preserved so a
+    # bad cache state can never break the page.
+    demand_by_pid: dict = {}
+    try:
+        demand_by_pid = get_demand(session, for_date=target_date)
+    except Exception:
+        # Demand forecast fallback — empty dict keeps the plan grid rendering
+        # without forecasts; operator can still manually set quantities.
+        logger.debug("get_demand fallback in produccion day view", exc_info=True)
+        demand_by_pid = {}
 
     # _step_5..6: build plan_rows_view (recipe rows + ad-hoc rows)
     plan_rows_view = [

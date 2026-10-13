@@ -1553,6 +1553,9 @@ def public_pedido(request: Request, token: str) -> HTMLResponse:
         try:
             session.commit()
         except Exception:
+            # Audit row is best-effort; the pedido already exists in the
+            # session. Rollback the audit row without losing the pedido.
+            logger.warning("pedido audit commit failed; rolling back audit row only", exc_info=True)
             session.rollback()
         decorated = _decorate_pedido(pedido, session)
         decorated["lines"] = [
