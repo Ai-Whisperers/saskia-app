@@ -1,3 +1,56 @@
+## 2026-10-13 — test(s1-batch7): parametrize _step_5_build_recipe_row + _restock_for_target (CC 24 + 29, D-grade → +15 cases)
+
+**Scope**: `tests/test_d_grade_helpers_batch7.py` (new, ~1300 lines). Continues the s1-batch3/4/5/6 pattern of locking D-grade branch matrices with parametrized rows.
+
+Drives two D-grade helpers through `@pytest.mark.parametrize("row", _ROWS_*, ids=lambda r: r["spec"].id)`. Both are private helpers (leading underscore) with no direct unit tests before this file.
+
+- **`app/routers/produccion/_full.py:_step_5_build_recipe_row`** — CC 24 (radon D-grade) — 9 scenarios:
+  - `all_objects_present` — full happy path: recipe+product+pricing+demand+fermentation all in dicts, qty>0 → every field populated, surplus computed, source_bucket=`historial`, confidence_band=`conf-vhigh` (locks the 85→vhigh threshold)
+  - `no_recipe` — `r.recipe_id = None` → recipe_obj=None → all recipe-derived fields (yield_qty, fermentation, difficulty, allergens, surplus) are None; pricing/demand still read from the dicts (cost_per_unit_gs=0 because pricing_dict is empty)
+  - `recipe_not_in_dict` — `r.recipe_id` set but `recipe_by_id` miss → recipe_obj=None (different path from `no_recipe`; locks the `.get(r.recipe_id)` lookup branch)
+  - `product_not_in_dict` — `r.product_id` set but `product_by_id` miss → product_obj=None → portion_label=None; recipe fields still populated
+  - `qty_zero_no_surplus` — `r.qty_to_produce=0` with recipe+yield present → surplus computation SKIPPED (gate: `r.qty_to_produce > 0`); batch_qty/batch_unit still set, batch_surplus_qty/pct both None
+  - `fermentation_with_minutes` — `recipe.fermentation_minutes=720` → fermentation_reminder is a non-None dict
+  - `fermentation_none_branch` — `recipe.fermentation_minutes=None` → fermentation_reminder is None (the else-None branch — quick breads, cookies)
+  - `closure_status_default_open` — empty `closure_status_by_pid` → product_id not in dict → helper's `.get(pid, "open")` default fires → status="open"; empty `closure_notes_by_pid` → notes=None
+  - `completions_and_pedidos_lookup` — `completions_by_pid={pid: 8.0}` + `ped_units_by_pid={pid: 3.0}` → completed_qty=8.0, pending_pedido_qty=3.0 (locks the `.get(pid, 0.0)` read paths)
+
+- **`app/rms/refunds.py:_restock_for_target`** — CC 29 (radon D-grade) — 6 scenarios:
+  - `sale_no_movement_returns_empty` — sale exists, no StockMovement rows → helper returns [] (the `if not moves: return []` early return)
+  - `sale_two_movements_proportional` — 2 StockMovement rows → 2 (ing_id, share) entries; share = `|move.qty| / sum(|move.qty|) * restocked_qty` (locks the proportional-distribution branch)
+  - `sale_not_found_returns_empty` — `target_id` points to no Sale → helper returns [] (the `if sale is None: return []` early return; locks the head-of-function existence check)
+  - `sale_single_movement_full_share` — 1 StockMovement row → 1 entry; share = restocked_qty (the 1/1 case)
+  - `sale_zero_qty_moves_all_skipped` — 2 StockMovement rows with qty=0 → total_delta=0 → divisor falls back to 1.0 → each share=0 → all skipped (locks the `total_delta = sum(...) or 1.0` fallback and the `if share <= 0: continue` filter)
+  - `pedido_no_lines_returns_empty` — pedido with 0 PedidoLine rows → helper returns [] (the `if not lines: return []` early return)
+
+**Bug discoveries (excluded from this PR, queued for S3 refactor)**:
+
+The pedido_line-with-recipe and pedido-with-lines branches of `_restock_for_target` are EXCLUDED from this file because the helper has two pre-existing bugs:
+
+1. `app/rms/refunds.py:412, 464` — the helper reads `pl.recipe_id`, but `PedidoLine` (in `app/rms/models_legacy.py:1904`) has no `recipe_id` column. Calling the helper with a real PedidoLine raises `AttributeError`. S3 fix: either add the column or change the helper to `pl.product.recipe_id`.
+
+2. `app/rms/refunds.py:426` — `per_portion = (rl.qty or 0) / recipe.yield_qty`, but `RecipeLine.qty` is `Numeric(12, 4)` → Decimal, while `Recipe.yield_qty` is `Float` → float. The Decimal/float division raises `TypeError`. S3 fix: wrap `rl.qty` in `float(...)`.
+
+These are out of scope for the s1-batch7 test-coverage sweep (which only writes parametrize rows for branches that can be exercised end-to-end). The s3 audit will pick them up.
+
+**Why drive them directly (not through the route)**: both are private helpers (leading underscore). `_step_5_build_recipe_row` is a pure function of dicts + one `ProductionRow` — no DB, no template context. `_restock_for_target` is a SQLAlchemy helper that needs a Session + Ingredient/Recipe/Sale/PedidoLine set up, but no FastAPI Request/Depends. Calling them in isolation lets us lock the branch matrix without touching CSRF/auth/template render and use `session_factory()` directly so we exercise real SQLAlchemy state transitions (commit, flush, refresh, query).
+
+**This file is ADDITIVE** — no existing tests are modified. The production regression tests (`test_P14_*`, `test_produccion_v3_phase*`) cover end-to-end flows; this file locks the helper-level branches those flows pass through. The `refunds` test file (`tests/test_refunds.py`) already covers the public `create_refund` + DB-trigger cap; this batch adds direct coverage of the restock helper's branch matrix that was previously only exercised end-to-end.
+
+**Excluded D-grade helpers (covered elsewhere or already exercised)**:
+
+- `libro_ventas` (CC 21) — PR #174
+- `bank_list` / `shopping_list_index` (CC 21) — PR #178
+- `margin_drift_all` / `from_workbook` (CC 22) — PR #179
+- `_pedido_resolve_customer` / `_pedido_persist_address_book_entry` (CC 24 + 23) — PR #181
+- `_validate_workbook` (CC 28) — already exercised indirectly through `from_file(dry_run=True)` in `tests/test_excel_patch.py`; not re-doubled (s1-batch5 precedent)
+- `_import_patch_ingredientes` (CC 23) — already exercised by `tests/test_excel_patch.py::test_patch_ingredientes_*`
+- `verify_catalog_on_vps.py main` (CC 22) — already covered by `tests/test_verify_catalog_on_vps.py`
+- `apply_sale` (CC 25) — exercised by 28+ test files via the full sale-creation path; refactoring it is S3 territory
+- `_restock_for_target` pedido_line + pedido-with-lines branches — see "Bug discoveries" above
+
+Adding a new scenario = one new dict entry in `_ROWS_RECIPE` or `_ROWS_RESTOCK`, no new function.
+
 ## 2026-10-13 — refactor(rms): SASKIA-211x split margin_drift_all (CC 22 → 6, D → B, 6 helpers)
 
 **Scope**: `app/rms/product_price_history.py` (split of `margin_drift_all` only; `product_price_history` untouched, `MarginDrift` dataclass untouched).
