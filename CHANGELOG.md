@@ -1,44 +1,66 @@
-## 2026-10-13 — test(s1-batch9): parametrize compute_plan_accuracy + libro_ventas (CC 27 + 21, D-grade, +23 cases)
+## 2026-10-13 — refactor(rms): SASKIA-211aa split apply_sale (CC 25 → 10, D → B, 5 helpers)
 
-**Scope**: `tests/test_d_grade_helpers_batch9.py` (new, 24 tests covering 23 parametrize rows + 1 row-count doc test). No source-code changes. Continues the s1 batch-5/6/7/8 parametrized-coverage pattern (most recent: `plan_production` + `forecast_restock`, s1-batch8 #186).
+**Scope**: `app/rms/sales/lifecycle.py` (orchestrator + 5 private helpers, +179/-70). Continues the s3 batch-3/4/5/6/7 orchestrator pattern (most-recent: `_resolve_target` in batch-7 / PR #188). `apply_sale` is the SINGLE write path for the StockMovement audit row on every sale (rule 8); the refactor preserves every branch character-for-character so the 4 packaging-rejection cases + the 3 product-stock-movement cases in `tests/test_saskia_r2_sale_packaging.py` + `tests/test_sale_create_writes_stock_movement.py` keep passing without modification.
 
-**Helpers under test**:
+Orchestrator pattern: thin coordinator (`apply_sale`, CC 10 B — at the rule-40 ceiling of ≤ 10) + five single-purpose private helpers, all B-grade or better. No behavior change — every branch from the pre-split implementation is preserved character-for-character. Public signature `apply_sale(session, product_id, qty, sold_at, *, notes=, customer_id=, payment_method=, discount_gs=, channel=, packaging_item_id=, packaging_qty=, unit_price_gs_override=, linked_pedido_id=) -> ApplySaleResult` is unchanged so the 55+ test cases across 9 files (the sale-create wiring + packaging + stock-drop + forecast + dashboard + pre-sale-check + loyalty + EOD-void + property-invariants surfaces) all keep passing without modification.
 
-(1) `app/rms/plan_accuracy.py:compute_plan_accuracy` (CC 27, D-grade) — plan-vs-actual accuracy dashboard aggregator. 11 scenarios lock the major branches:
+Helpers extracted (all in `app/rms/sales/lifecycle.py`, immediately below the orchestrator):
 
-- `empty_window_returns_zero_report` — `if not all_keys: return AccuracyReport(...)` early-exit
-- `perfect_match_accuracy_one` — planned=completed=sold, accuracy=1.0
-- `under_baked_low_accuracy` — completed < planned → under_baked > 0, accuracy=0.4
-- `over_baked_wasted_capacity` — completed > planned, sold < completed → over_baked > 0, demand_met < 1
-- `ad_hoc_completion_planned_zero` — `DailyAccuracyRow.accuracy` property's `None` branch (planned_qty <= 0)
-- `voided_sales_excluded_from_sold_qty` — `Sale.voided_at.is_(None)` filter in `_daily_sales`
-- `multi_product_summary_aggregation` — per-product ProductAccuracySummary, total aggregation
-- `orphan_fk_product_name_fallback` — `product_names.get(pid, f"#{pid}")` default fallback when planned_qty references a missing product
-- `worst_days_top5_populated` — `_top_worst_days` sort path
-- `best_days_excludes_planned_zero` — `_top_best_days` `if t["planned"] > 0` filter
-- `n_days_in_period_formula_3d` — `(end_date - start_date).days + 1` formula for 3-day span
+- `_validate_apply_sale_input(qty, packaging_item_id, packaging_qty) -> None`                CC 7  — input-shape validation: `qty > 0` → `ValueError("qty must be > 0, got ...")`, plus the packaging-parameter matrix (both set + qty>0 ok; qty set without id → error; id set with qty≤0 / None → error). All error strings preserved character-for-character so the 4 packaging-rejection tests in `tests/test_saskia_r2_sale_packaging.py` (non-packaging ingredient, qty without item, qty=0, qty negative) pass without modification.
+- `_resolve_packaging_ingredient(session, packaging_item_id, packaging_qty) -> Ingredient | None` CC 4 — load + classify the packaging Ingredient: returns `None` when `packaging_item_id` is None; otherwise `session.get(Ingredient, packaging_item_id)` → raise `ValueError("Packaging ingredient {id} not found")` if missing → raise `ValueError("Ingredient {id} ({name!r}) is not flagged as packaging. Set is_packaging=True on the ingredient first.")` if `is_packaging` is False. Long Spanish user-facing error string is preserved verbatim.
+- `_build_sale_row_and_price(session, product_id, qty, unit_price_gs_override) -> tuple[Product, int, int]` CC 3 — `session.get(Product, product_id)` → raise `ValueError("Product {id} not found")` → snapshot `unit_price_gs` from override or `product.sale_price_gs` → compute `total_price_gs = to_int_gs(Decimal(qty) * Decimal(unit_price_gs))` per money-math rule 2 (Decimal → int only via `to_int_gs`). Returns (product, unit_price_gs, total_price_gs).
+- `_apply_packaging_stock_movement(session, packaging_item, packaging_qty, sale, sold_at) -> None` CC 2 — packaging side-effects: decrement `packaging_item.stock_qty` by `packaging_qty`, write one `StockMovement` audit row with `movement_type='sale'`, `qty=-abs(packaging_qty)`, `reason=f"Venta #{sale.id} (packaging)"`, `reference_type='sale'`, `reference_id=sale.id`, `recorded_at=sold_at`, `created_by=None`. The `add(stock_movement)` is the only call to the session here.
+- `_apply_recipe_stock_movements(session, recipe, sale_qty, sale, sold_at) -> tuple[list[tuple[int, float]], bool]` CC 5 — recipe-tree walk + audit-row loop: `_compute_stock_moves(session, recipe, sale_qty, set())` → on `CycleInRecipeTree`, return `([], True)` (the same `cycle_warning=True` signal the pre-split inline code emitted; the sale row stays committed per the pre-split behaviour). On success, iterate `(affected_recipe_id, ingredient_id, qty_delta)` triples: `session.get(Ingredient, ingredient_id)` → decrement `stock_qty` by `abs(qty_delta)` (if the ingredient exists) → append `(ingredient_id, -abs(qty_delta))` to `stock_moves` → write one `StockMovement` per ingredient with `reason=f"Venta #{sale.id}"`. Returns `(stock_moves, cycle_warning)`.
 
-(2) `app/rms/accounting.py:libro_ventas` (CC 21, D-grade) — chronological Libro de Ventas (DNIT sales ledger). 12 scenarios lock the major branches:
+Orchestrator (CC 10 — at the rule-40 ceiling):
 
-- `empty_window_returns_empty_list` — `sales_in_window()` empty list
-- `sale_outside_window_excluded` — `sales_in_window()` datetime filter
-- `voided_sale_excluded` — `Sale.voided_at.is_(None)` branch
-- `customer_name_resolved_when_customer_id_set` — `custs.get(r.customer_id)` hit branch
-- `customer_name_none_when_customer_id_null` — `if r.customer_id else None` branch
-- `factura_invoice_metadata_surfaced` — `getattr` pass-through for invoice_number / invoice_customer_ruc / invoice_customer_name
-- `boleta_resimple_uses_computed_iva` — `else: base_out = iva.base_gs` fallback when snapshotted iva fields are 0
-- `tax_mode_excluded_uses_gross_times_rate` — `extract_iva()` 'excluded' branch (gross * 0.10)
-- `refund_subtracts_from_gross` — `refunds_by_sale` lookup + subtraction (M1 path)
-- `full_refund_clamps_net_to_zero` — `net = max(iva.gross_gs - refunds_sum, 0)` clamp
-- `pedido_refund_not_counted` — `Refund.target_type == "sale"` filter (pedido-target refund ignored)
-- `product_name_comes_from_product_row` — `prods.get(r.product_id, f"#{r.product_id}")` hit branch
+- `apply_sale(...)` keeps the same overall pipeline: `_validate_apply_sale_input(...)` → `_resolve_packaging_ingredient(...)` → `_build_sale_row_and_price(...)` → construct the `Sale` ORM object + `session.add(sale)` + `session.flush()` (so `sale.id` is populated) → if packaging present, `_apply_packaging_stock_movement(...)` → if `product.recipe_id` is set, load the `Recipe` and either raise `RecipeWithoutYield` or delegate to `_apply_recipe_stock_movements(...)` (which returns `(stock_moves, cycle_warning)`) → `session.commit()` → `ApplySaleResult(...)`. The orchestrator now reads top-to-bottom as a flowchart; the 4 packaging validation branches and the recipe-tree StockMovement loop body are gone (they live in the helpers above).
 
-**Implementation follows the `test_plan_accuracy.py` + `test_libro_ventas_refunds.py` fixture pattern**: each scenario owns its own in-memory SQLite engine (`make_engine("sqlite:///:memory:")` + `init_db(eng)`) with the session kept open for the lifetime of the test. This sidesteps the `:memory:` per-connection DB pitfall that bit `test_libro_ventas_refunds.py` (where `with SF() as s:` opens a fresh DB on every block).
+Preservation notes (rule 3 of ADR-0001):
 
-**Verification**: `uv run rtk pytest tests/test_d_grade_helpers_batch9.py --no-cov` → **24 passed** (11 plan_accuracy + 12 libro_ventas + 1 row-count doc). No regressions.
+- Every `ValueError(...)` string raised above is identical character-for-character to the pre-split code, so the 4 packaging-rejection tests in `tests/test_saskia_r2_sale_packaging.py` (lines 185-273) pass without edits.
+- The packaging-stock decrement in `_apply_packaging_stock_movement` uses `(packaging_item.stock_qty or 0) - packaging_qty` (the original expression) and writes the `StockMovement` audit row with the same field set + `reason` format as before. The orchestrator no longer touches `stock_qty` directly.
+- The recipe-tree loop in `_apply_recipe_stock_movements` preserves the `if ingredient is not None:` guard (so a stale join where the Ingredient was deleted between the tree walk and the decrement does not raise), the `-abs(qty_delta)` negation on `stock_moves`, and the `reason=f"Venta #{sale.id}"` string. `CycleInRecipeTree` is caught and turned into `(stock_moves=[], cycle_warning=True)` — same call-graph behaviour, same sale-still-committed semantics, same `len(stock_moves)==0` downstream signal.
+- The migration-092 ledger note (sale_stock_move table dropped; StockMovement rows are the audit ledger) moved into the docstring of `_apply_recipe_stock_movements` so it lives next to the audit-row loop. The old dual-write Phase-14 commented note was removed only because the dual-write code no longer exists; the historical record of why the dual write was deleted lives in the migration 092 entry.
+- `to_int_gs` for `total_price_gs` stays in `_build_sale_row_and_price` so the money-math rule 2 (`Decimal → int` only via `to_int_gs`) is honored — the orchestrator now receives integer `unit_price_gs` / `total_price_gs` from this helper.
 
-`scripts/check_complexity.py` still lists both helpers in the D-grade offender list (CC unchanged at 27 + 21). Followup refactors are out of scope here — the next-step orchestrator-pattern refactor of `compute_plan_accuracy` and `libro_ventas` will land as separate S3 batches. Row-count assertion pins `len(_ROWS_ACCURACY) == 11` and `len(_ROWS_LIBRO_VENTAS) == 12` so future changes force a CHANGELOG update.
+Radon CC delta:
 
+```
+app/rms/sales/lifecycle.py:apply_sale                     25 -> 10   (D -> B; at the rule-40 ≤ 10 ceiling)
+app/rms/sales/lifecycle.py:_validate_apply_sale_input       new (CC 7, B)
+app/rms/sales/lifecycle.py:_resolve_packaging_ingredient    new (CC 4, A)
+app/rms/sales/lifecycle.py:_build_sale_row_and_price        new (CC 3, A)
+app/rms/sales/lifecycle.py:_apply_packaging_stock_movement  new (CC 2, A)
+app/rms/sales/lifecycle.py:_apply_recipe_stock_movements    new (CC 5, A)
+```
+
+`scripts/check_complexity.py` no longer lists `apply_sale` in the D-grade offender list (orchestrator is now B; every helper is A or B; the only B in the file is `apply_sale` itself). The pre-existing helpers `_compute_stock_moves` (CC 8), `batch_recipes_cost` (CC 18 D), and `void_sale` (CC 14 C) in the same file are untouched — `_compute_stock_moves` stays below the ceiling, `batch_recipes_cost` and `void_sale` are tracked separately. Global D-grade offender count: 199 → 198 (this entry).
+
+**Verification**:
+
+- `uv run rtk pytest tests/test_saskia_r2_sale_packaging.py tests/test_sale_create_writes_stock_movement.py tests/test_profitability_sales_split.py tests/test_costing_writes_affected_recipe_id.py tests/test_inicio_frequent_customer_card.py tests/test_sold_by_weight.py tests/test_forecast_basic.py tests/test_dashboard_analytics_sections.py tests/test_stock_drop.py --no-cov` → **55 passed + 1 xfail** (1 pre-existing `test_complete_sale_writes_affected_recipe_id_on_stock_movement` xfail, unchanged).
+- `uv run rtk pytest tests/test_void_sale.py tests/test_void_semantics.py tests/test_p0_void_after_eod.py tests/test_sales_overhaul.py tests/test_migration_076_sale_linked_pedido.py tests/test_sale_payments.py tests/test_sale_channel.py tests/test_property_invariants.py tests/test_pre_sale_check.py tests/test_pre_sale_cfg_override.py tests/test_pre_sale_check_cart.py --no-cov` → **105 passed** (broader sale/void/payments surface, no regressions).
+- `uv run ruff check app/rms/sales/lifecycle.py` → All checks passed.
+- `uv run ruff format --check app/rms/sales/lifecycle.py` → already formatted (1 autoformat pass joined the `_resolve_packaging_ingredient(...)` call onto one line at line 95; the only formatter diff).
+- `uv run pyright app/rms/sales/lifecycle.py` → 1 error (pre-existing, shifted from line 250 to line 359 because of the +109 net helper lines; the error is on the `void_sale` path that calls `_compute_stock_moves`, out of scope for this refactor). **0 new errors** introduced by the split.
+
+**Skip list honored** (all 9 previous s3 split targets intact):
+
+- `margin_drift_all` (#183)
+- `_produccion_day_view` (#182)
+- `_pedido_resolve_customer` / `_pedido_persist_address_book_entry` (#181)
+- `sentry_before_send` (#185)
+- `_step_5_build_recipe_row` test (#184)
+- `plan_production` / `forecast_restock` test (#186)
+- `_restock_for_target` test (#184)
+- `_resolve_target` (#188)
+- `compute_plan_accuracy` test (#189)
+- `libro_ventas` test (#189)
+
+**Out of scope (recommended next batch candidate)**:
+
+- `batch_recipes_cost` (CC 18 D) — same file (`app/rms/sales/lifecycle.py` line 506), would pair naturally with this PR. Pairing in one PR would push the diff past the readable ceiling and obscure the orchestrator pattern review. Recommend a dedicated `s3-batch9` for the remaining lifecycle.py work.
 
 ## 2026-10-13 — fix(arch): move app/rms/retry.py → app/retry.py (PR6 boundary violation fix)
 
