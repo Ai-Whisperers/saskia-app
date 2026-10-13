@@ -1306,9 +1306,12 @@ form ui-date {
 }
 .inv-list thead .inv-list__l1 > :last-child { justify-self: end; }
 
-/* Productos (6) and clientes (5): L1 stays one line; Ver detalles spans the row. */
-.product-list { --catalog-cols: 2rem minmax(12rem, 2.2fr) minmax(6.5rem, 0.9fr) auto auto minmax(6.5rem, auto); --catalog-detail-col: 6; }
-.client-list { --catalog-cols: 2rem minmax(10rem, 1.8fr) minmax(8rem, 1fr) auto minmax(6.5rem, auto); --catalog-detail-col: 5; }
+/* Productos (6) and clientes (5): L1 stays one line; Ver detalles spans the row.
+   The disclosure ends on the last track (span 1 / -1). applyProductListTracks
+   drops a hidden Nombre, Precio, or Disponible track so that last line moves
+   with the cells that remain. */
+.product-list { --catalog-cols: 2rem minmax(12rem, 2.2fr) minmax(6.5rem, 0.9fr) auto auto minmax(6.5rem, auto); }
+.client-list { --catalog-cols: 2rem minmax(10rem, 1.8fr) minmax(8rem, 1fr) auto minmax(6.5rem, auto); }
 .catalog-list__l1 {
   display: grid;
   grid-template-columns: var(--catalog-cols);
@@ -1318,7 +1321,7 @@ form ui-date {
 }
 .catalog-list__price,
 .catalog-list__phone { text-align: right; font-variant-numeric: tabular-nums; }
-.catalog-list__details { grid-column: var(--catalog-detail-col); grid-row: 1; justify-self: end; }
+.catalog-list__details { grid-column: span 1 / -1; grid-row: 1; justify-self: end; }
 .catalog-list__details.row-meta-details > summary {
   font-size: 0.85rem;
   color: var(--color-text-link);
@@ -1362,6 +1365,7 @@ form ui-date {
   }
   .catalog-list__details[open] > summary,
   .catalog-list__details[open] > .inv-list__panel { grid-column: auto; grid-row: auto; width: 100%; }
+  .catalog-list thead .catalog-list__l1 > .catalog-list__details { justify-self: stretch; }
 }
 
 /* Producción day plan: Listo, producto, lote, hecho. Parked fields span the row. */

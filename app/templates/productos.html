@@ -145,11 +145,11 @@
       <th>
         <div class="catalog-list__l1">
           <span class="col-checkbox"><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></span>
-          <span data-col="name" class="col-name">{{ m.sort_th("Nombre", "name", sort, dir) }}</span>
-          <span data-col="price" class="col-price num">{{ m.sort_th("Precio venta", "sale_price_gs", sort, dir) }}</span>
-          <span data-col="available" class="col-available">Disp.</span>
-          <span>Editar</span>
-          <span>Ver detalles</span>
+          <span data-col="name" class="catalog-list__name col-name">{{ m.sort_th("Nombre", "name", sort, dir) }}</span>
+          <span data-col="price" class="catalog-list__price num col-price">{{ m.sort_th("Precio venta", "sale_price_gs", sort, dir) }}</span>
+          <span data-col="available" class="catalog-list__disp col-available">Disp.</span>
+          <span class="catalog-list__edit">Editar</span>
+          <span class="catalog-list__details">Ver detalles</span>
         </div>
       </th>
     </tr>
@@ -561,15 +561,35 @@ function toggleColumnVisibility() {
 
 function applyColumnVisibility() {
   var toggles = document.querySelectorAll('.col-toggle');
+  var hiddenL1 = {};
   toggles.forEach(function(toggle) {
     var col = toggle.dataset.col;
     var visible = toggle.checked;
+    if (col === 'name' || col === 'price' || col === 'available') {
+      hiddenL1[col] = !visible;
+    }
     document.querySelectorAll('[data-col="' + col + '"]').forEach(function(el) {
       el.style.display = visible ? '' : 'none';
     });
     document.querySelectorAll('.col-' + col).forEach(function(el) {
       el.style.display = visible ? '' : 'none';
     });
+  });
+  applyProductListTracks(hiddenL1);
+}
+
+/* Nombre, Precio, and Disponible are L1 tracks. Dropping the hidden
+   track lets Ver detalles (span 1 / -1) sit on the last remaining column.
+   Parked fields live inside the disclosure, so they do not change the grid. */
+function applyProductListTracks(hiddenL1) {
+  var tracks = ['2rem'];
+  if (!hiddenL1.name) tracks.push('minmax(12rem, 2.2fr)');
+  if (!hiddenL1.price) tracks.push('minmax(6.5rem, 0.9fr)');
+  if (!hiddenL1.available) tracks.push('auto');
+  tracks.push('auto', 'minmax(6.5rem, auto)');
+  document.querySelectorAll('.product-list').forEach(function(list) {
+    if (tracks.length === 6) list.style.removeProperty('--catalog-cols');
+    else list.style.setProperty('--catalog-cols', tracks.join(' '));
   });
 }
 

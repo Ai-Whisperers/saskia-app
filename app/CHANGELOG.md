@@ -1,4 +1,10 @@
 
+## 2026-10-13 — Compact list headers stay over their columns
+
+Under 640px the productos and clientes headers use the same grid
+placement as the row. Hiding Nombre, Precio, or Disponible drops that
+track so Ver detalles stays on the last visible column.
+
 ## 2026-10-12 — Productos and clientes lists show the daily row
 
 Productos leads with the name, the sale price, availability, and Editar.

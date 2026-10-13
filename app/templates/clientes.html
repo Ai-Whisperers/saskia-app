@@ -90,10 +90,10 @@
       <th>
         <div class="catalog-list__l1">
           <span><input type="checkbox" id="select-all-clients" aria-label="Seleccionar todos"></span>
-          <span>{{ cliente_sort("name", "Nombre", sort, dir, q, tier, page) }}</span>
+          <span class="catalog-list__name">{{ cliente_sort("name", "Nombre", sort, dir, q, tier, page) }}</span>
           <span class="catalog-list__phone">{{ cliente_sort("phone", "Teléfono", sort, dir, q, tier, page) }}</span>
           <span class="catalog-list__tier">{{ cliente_sort("tier", "Nivel", sort, dir, q, tier, page) }}</span>
-          <span>Ver detalles</span>
+          <span class="catalog-list__details">Ver detalles</span>
         </div>
       </th>
     </tr>

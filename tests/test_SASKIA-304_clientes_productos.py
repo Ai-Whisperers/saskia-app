@@ -222,6 +222,23 @@ def test_productos_list_is_name_price_and_availability():
     assert "bulk-edit-modal" in src
     assert 'id="select-all"' in src
     assert "column-visibility-panel" in src
+    for cls in (
+        "catalog-list__name",
+        "catalog-list__price",
+        "catalog-list__disp",
+        "catalog-list__edit",
+        "catalog-list__details",
+    ):
+        assert cls in thead, cls
+    tracks = src[src.find("function applyProductListTracks") :]
+    assert tracks.find("function copyToClipboard") > 0
+    tracks = tracks[: tracks.find("function copyToClipboard")]
+    for col in ("name", "price", "available"):
+        assert col in tracks, col
+    assert "--catalog-cols" in tracks
+    css = (REPO_ROOT / "app" / "static" / "theme.css").read_text(encoding="utf-8")
+    assert "grid-column: span 1 / -1" in css
+    assert "--catalog-detail-col" not in css
 
 
 def test_clientes_list_is_name_phone_and_tier():
@@ -246,6 +263,13 @@ def test_clientes_list_is_name_phone_and_tier():
     thead = _slice(src, "<thead>", "</thead>", table)
     for label in ("Nombre", "Teléfono", "Nivel", "Ver detalles"):
         assert label in thead, label
+    for cls in (
+        "catalog-list__name",
+        "catalog-list__phone",
+        "catalog-list__tier",
+        "catalog-list__details",
+    ):
+        assert cls in thead, cls
     assert "cliente_sort(" in thead
     for parked in ("Visitas", "Gasto total", "Puntos", "Última compra", "Sub · Ped", "Registrado"):
         assert parked not in thead, parked
