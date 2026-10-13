@@ -1,3 +1,46 @@
+## 2026-10-13 — refactor(rms): SASKIA-211z split _resolve_target (CC 21 → 4, D → A, 3 helpers)
+
+**Scope**: `app/rms/refunds.py` (split of `_resolve_target` only; `create_refund`, `_restock_for_target`, `_reverse_points_proportional`, `sum_refunds_for`, and the public `RefundError` / `RefundResult` are untouched). Continues the s3 batch-3/4/5/6 orchestrator pattern (most-recent: `sentry_before_send`, batch-6). The pairing sibling `_restock_for_target` (cc=29) is left for a future refund-batch per the from-s3-batch6.md "next-batch candidates" recommendation — pairing them in one PR would push the PR past the readable diff ceiling and obscure the orchestrator pattern review.
+
+Orchestrator pattern: thin coordinator (`_resolve_target`, CC 4) + three single-purpose private helpers, all B-grade (CC ≤ 7). No behavior change — every branch from the pre-split implementation is preserved character-for-character. Public signature `_resolve_target(session, target_type, target_id) -> tuple[object, int, str, date | None]` is unchanged so the lone caller (`create_refund` at line 205) and the 16 tests in `tests/test_refunds.py` + `tests/test_refund_router.py` pass without modification.
+
+Helpers extracted:
+
+- `_resolve_sale_target(session, target_id)`                        CC 6  — sale-branch resolver: `session.get(Sale, target_id)` → raise `not_found` if missing → raise `voided` if `voided_at` is set → compute `total_gs = max(0, int(qty * unit_price_gs) - int(discount_gs or 0))` → return `(sale, total_gs, payment_method, sold_at.date())`.
+- `_resolve_pedido_target(session, target_id)`                     CC 7  — pedido-branch resolver: `session.get(Pedido, target_id)` → raise `not_found` if missing → sum line totals via `sa_select(PedidoLine).where(pedido_id == target_id)` (the existing module-level `sa_select` import, no new lazy import) → return `(pedido, total_gs, payment_intent, promised_date)`. The pre-split inline `from sqlalchemy import select as _sa_select` was promoted to the module-level `sa_select` already imported at line 39.
+- `_resolve_pedido_line_target(session, target_id)`                CC 7  — pedido_line-branch resolver: `session.get(PedidoLine, target_id)` → raise `not_found` if missing → look up the parent `Pedido` for `payment_intent` and `promised_date` (best-effort: fall back to `"efectivo"` / `None` if the parent is missing) → return `(pl, total_gs, payment_method, eod_date)`.
+
+Orchestrator:
+
+- `_resolve_target(session, target_type, target_id)`                CC 4  — validate `target_type` against `VALID_TARGET_TYPES` (raise `invalid_target_type` if not) → dispatch to one of the three per-type resolvers → return the result tuple. Three call paths, three explicit returns, one validation guard — reads as a flowchart.
+
+Radon CC delta:
+
+```
+app/rms/refunds.py:_resolve_target                  21 -> 4   (D→A)
+app/rms/refunds.py:_resolve_sale_target               new (CC 6)
+app/rms/refunds.py:_resolve_pedido_target             new (CC 7)
+app/rms/refunds.py:_resolve_pedido_line_target        new (CC 7)
+```
+
+`make complexity` no longer lists `refunds.py:_resolve_target` in the D-grade offender list (orchestrator is now A; every helper is B). Global offender count: 204 (was 205 before this batch; 205 → 204 → 203 next).
+
+Behavior preservation: 37 refund-touching tests across two files (all pre-existing tests, none added):
+
+- `tests/test_refunds.py::test_*` — 16/16: cap-exceeded trigger, partial-then-full, DB trigger bypass attempt, voided-sale rejection, unknown-sale rejection, invalid-target-type rejection, amount>0 enforcement, amount=0 blocked at DB, loyalty proportional reversal, etc.
+- `tests/test_refund_router.py::test_*` — 5/5: router-level smoke for the create-redirect / list flows.
+- `tests/test_d_grade_helpers_batch7.py::test_restock_for_target_branches` — 6/6: parametrized coverage of the still-D-grade `_restock_for_target` (untouched by this PR but its parameter set is exercised end-to-end via `create_refund`).
+
+The 16 refund-related pytest totals (37 tests in the broader `-k 'refund or Refund'` sweep) all pass without modification. The `test_d_grade_helpers_batch7.py::test_restock_for_target_branches` suite (added by S1 batch-7 / PR #184) was also re-run as a regression guard.
+
+Lint/format:
+
+- `uv run pyright app/rms/refunds.py` — 4 errors, all pre-existing (line numbers shifted by +38 due to the +38 net lines of helpers; errors are at lines 350, 451, 455, 468 — `int | None` to `customer_id`, and three `reportAttributeAccessIssue` on `PedidoLine.recipe_id` / `RecipeLine.ingredient_id`, all on the existing `_restock_for_target` / `_reverse_points_proportional` code paths, none on the new helpers). 0 new errors introduced by this split.
+- `uv run ruff check app/rms/refunds.py` — All checks passed.
+- `uv run ruff format --check app/rms/refunds.py` — 1 file already formatted (post the autoformat pass that joined the `sa_select(PedidoLine)...all()` call onto one line, the only formatter diff from this refactor).
+
+NOTE: The pre-split inline `from sqlalchemy import select as _sa_select` inside the `pedido` branch was removed; the new `_resolve_pedido_target` helper reuses the module-level `sa_select` already imported at line 39 of `app/rms/refunds.py` (alias for `sqlalchemy.select`, imported unconditionally at module load because `sum_refunds_for` and `_restock_for_target` already need it). This is a behavior-preserving change — same SQL, same query plan, same result set — but it does mean the inline-lazy-import is gone. Pyright was not satisfied with the pre-split code either (the lazy import lived inside a function with a `_` prefix alias to avoid shadowing); the module-level alias was already in place and is the cleaner home for this import.
+
 ## 2026-10-13 — refactor(rms): SASKIA-211x split sentry_before_send (CC 22 → 5, D → A, 3 helpers)
 
 **Scope**: `app/rms/notify.py` (split of `sentry_before_send` only; `telegram_configured`, `send_telegram`, and the existing `app/rms/sentry.py:sentry_level_for` are untouched). Continues the s3 batch-3/4/5 orchestrator pattern (most-recent: `margin_drift_all`, batch-5).
