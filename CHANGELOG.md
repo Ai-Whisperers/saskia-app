@@ -1,3 +1,46 @@
+## 2026-10-13 — s1 batch-16: parametrize _produccion_day_view + import_bank_transactions (CC 28 + 21, D-grade, +33 cases)
+
+**Scope**: `tests/test_d_grade_helpers_batch16.py` (new, ~700 lines). Continues the s1 batch-3/4/5/6/7/8/9/10/11/12/13/14/15 helper-coverage sweep (#174, #178, #179, #181, #184, #186, #189, #191, #192, #193, #195, #199, #204). Picks the next 2 fresh D-grade offenders from `uv run scripts/check_complexity.py | grep -E '^\s+D\s+cc=2[0-9]'` (filtered to drop anything already covered by the prior batches) — `_produccion_day_view` (CC 28, D-grade, `app/routers/produccion/_full.py:994`) and `import_bank_transactions` (CC 21, D-grade, `scripts/import_herebus_data.py:1035`).
+
+`_produccion_day_view` was flagged in the batch-13 CHANGELOG skip list as "out of scope for s1 (subsequent batches or sibling sessions)" — this batch is the follow-up. It is the day-view orchestrator behind `GET /produccion`, a 260-line monolith that wires together 15 `_step_N` helpers plus `plan_production`, `get_demand`, recipe-pricing joins, raw-SQL `recipe_pricing` lookup, EOD completions, ingredient filter (falta/justo/suficiente), pagination, and the closed-day banner. Most branches are URL-param driven (rows, page, show_all, ingredients_filter) or DB-state driven (closed_day row). The 17 scenario rows drive the helper directly with a stub `Request` + a monkeypatched `render` (the imported `app.services.template_render.render` symbol) so the context dict is captured without going through the full Jinja2 render path.
+
+`import_bank_transactions` reads the fixed-path `HEREBUS_DIR/top/TXT260711013722.TAB` file, parses each tab-separated row, extracts IBAN and counterparty name from the description via regex, classifies by keyword, and writes idempotent `BankTransaction` rows. The 16 scenario rows monkeypatch the module-level `HEREBUS_DIR` to point at a `tmp_path` so the real Dutch bank file is never touched, write a fake TAB file at the expected subpath, optionally pre-seed rows for the idempotency branch, and assert on the return value + the persisted rows.
+
+**Helpers covered**:
+
+### (1) `app/routers/produccion/_full.py:_produccion_day_view` — CC 28 (radon D-grade)
+
+17 scenarios: `rows_200_clamped_to_100`, `rows_0_clamped_to_1`, `rows_20_default_unchanged`, `page_negative_clamped_to_1`, `page_zero_clamped_to_1`, `show_all_zero_sets_context_false`, `show_all_one_sets_context_true`, `show_all_two_falls_back_to_false`, `ingredients_filter_falta_passthrough`, `ingredients_filter_empty_passthrough`, `ingredients_filter_unrecognized_passthrough`, `shift_am_passthrough`, `shift_pm_passthrough`, `shift_empty_passthrough`, `no_closed_day_active_is_false`, `closed_day_seeded_marks_active_and_reason`, `template_name_is_produccion_html`.
+
+Locks the URL-param → context branches: the `rows_per_page = max(1, min(100, int(rows)))` upper + lower clamp (200 → 100, 0 → 1, 20 unchanged), the `current_page = max(1, int(page))` defensive clamp (page=-5 → 1, page=0 → 1 — the route's `Query(ge=1)` blocks this from HTTP but the helper itself is defensive), the `1 if int(show_all)==1 else 0` truthy gate (0 → False, 1 → True, 2 → False), the `ingredients_filter in ("falta", "justo", "suficiente")` whitelist (any other value → else-branch sorts ALL plan lines without filtering), the shift passthrough (AM / PM / empty), the `closed_day = session.get(ProductionClosedDay, target_date)` not-found vs seeded branches (active=False/None vs active=True/reason), and the literal `render(..., "produccion.html", ctx)` template name so a future rename is caught.
+
+### (2) `scripts/import_herebus_data.py:import_bank_transactions` — CC 21 (radon D-grade)
+
+16 scenarios: `tab_file_missing_returns_zero`, `blank_line_skipped`, `short_parts_line_skipped`, `invalid_amount_skipped`, `invalid_date_skipped`, `sepa_overboeking_classified_incoming_transfer`, `ontv_aab_classified_incoming_transfer`, `ovpay_classified_transport`, `betaalpas_only_classified_personal`, `kruidvat_classified_groceries`, `geldmaat_classified_cash_withdrawal`, `unknown_description_classified_other`, `iban_and_name_parsed_from_description`, `missing_iban_and_name_stored_as_none`, `duplicate_posted_at_amount_source_skipped`, `flushes_at_50_rows_continues_until_done`.
+
+Locks every branch of the Dutch EUR bank TAB importer: the `if not tab_path.exists(): return 0` early-exit, the `if not line: continue` blank-line skip, the `if len(parts) < 7: continue` short-row skip, the `except (ValueError, IndexError): continue` amount-parse skip, the `except ValueError: continue` date-parse skip, the if/elif classification chain (sepa/ontv → incoming_transfer, betaalpas-only → personal, ovpay → transport, kruidvat/lidl/action → groceries, geldmaat → cash_withdrawal, else → other), the IBAN + counterparty-name regex extraction (`r"IBAN:\s*(\S+)"` and `r"Naam:\s*([^B]+?)\s+\w+:"` — note the `[^B]` exclusion, which is why the test uses a counterparty name without the letter B), the missing-IBAN / missing-name fallback (both stored as `None`), the idempotency check on `(posted_at, amount, source="tab_dutch")`, and the `if n % 50 == 0: session.flush()` flush cadence (verified with 60 unique valid dates in 3 months × 20 days = 60 unique YYYYMMDD dates, all inserted successfully).
+
+The `_DAY_VIEW_ROWS` (17 rows) and `_BANK_ROWS` (16 rows) lists double as the row-count doc tests (`assert len(...) == 17` + `assert len(...) == 16`) so adding/removing a row forces a CHANGELOG note — same pattern as #174, #178, #179, #181, #184, #186, #189, #191, #192, #193, #195, #199, #204.
+
+**Helpers skipped** (already covered in prior PRs or out of scope for this sweep):
+
+- `libro_ventas` — already covered in #174 (batch 3)
+- `bank_list`, `shopping_list_index` — already covered in #178 (batch 4)
+- `margin_drift_all`, `from_workbook` — already covered in #179 (batch 5)
+- `_pedido_resolve_customer`, `_pedido_persist_address_book_entry` — already covered in #181 (batch 6)
+- `_step_5_build_recipe_row`, `_restock_for_target` — already covered in #184 (batch 7)
+- `plan_production`, `forecast_restock` — already covered in #186 (batch 8)
+- `compute_plan_accuracy`, `libro_ventas (re-pick)` — already covered in #189 (batch 9)
+- `batch_compute_prime_cost`, `import_benchmarks` — already covered in #191 (batch 10)
+- `_validate_workbook`, `_import_patch_ingredientes` — already covered in #192 (batch 11)
+- `fix_file`, `evidencia_importar` — already covered in #193 (batch 12)
+- `produccion_print`, `reclassify` — already covered in #195 (batch 13)
+- `seed_packs_gen`, `_seed_sales_90_days_of_realistic_data` — already covered in #199 (batch 14)
+- `check_docs_quality`, `check_duplicate_code` — already covered in #204 (batch 15)
+- `produccion_shift_execute` (CC 27), `verify_catalog_on_vps.main` (CC 22) — already covered in s3/s4 refactors (#201, #202)
+
+**Verification**: `uv run rtk pytest tests/test_d_grade_helpers_batch16.py --no-cov` → 33 passed. `ruff check` + `ruff format --check`: clean.
+
 <<<<<<< HEAD
 <<<<<<< HEAD
 ## 2026-10-12 — style(lint): post-merge-with-SASKIA-211d format fix
