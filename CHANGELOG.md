@@ -1,370 +1,149 @@
-## 2026-10-13 — refactor(produccion): SASKIA-211x split produccion_worksheet into 3 views + 15 _step_N helpers (CC 166→4)
-
-**Scope**: `app/routers/produccion/_full.py` (`produccion_worksheet` endpoint).
-
-Replaced the 418-line day-table + week-grid + month-grid monolith with a
-thin 3-branch dispatcher and **20 single-purpose helpers** (3 view-level
-+ 15 `_step_N` + 2 shared). The original `produccion_worksheet` now
-reads as: parse overrides → pick view → return.
-
-Helpers (target was 5-8 `_step_N`; delivered 15 for **flat, sub-CC-15
-functions**, plus 3 view-level wrappers):
-- `_produccion_week_view(request, session, week)` — 7-day grid
-  (uses `_aggregate_plan_across_days` + `_produccion_sales_in_range`).
-- `_produccion_month_view(request, session, today, month)` — month grid
-  with revenue total (same helpers).
-- `_produccion_day_view(request, session, for_date, overrides, **kwargs)`
-  — the dense one; orchestrates 15 `_step_N` helpers below. CC=26 (the
-  hard floor: it must call every step + render the giant dict).
-- `_aggregate_plan_across_days(session, days, week_start)` — shared
-  aggregation across N days (week+month). CC=8.
-- `_sort_product_rows_by_name(product_rows)` — name-sorted flatten. CC=2.
-- `_produccion_sales_in_range(session, start_dt, end_dt)` — top products
-  sold in window. CC=2.
-- `_step_1_load_pending_pedidos(session, target_date)` — pending/
-  confirmed/ready pedidos + per-product unit count. CC=10.
-- `_step_2_load_completions(session, target_date)` — completion rows
-  bucketed by product (qty + closure status + closure notes). CC=8.
-- `_step_3_load_recipe_pricing(session)` — recipe_pricing rows keyed by
-  recipe_id. CC=3.
-- `_step_4_filter_plan_rows(session, plan)` — M1: drop rows for inactive
-  products. CC=7.
-- `_step_5_build_recipe_row(r, **kwargs)` — the 25+ field per-row dict
-  literal + ternaries. CC=24 (dict literal, mostly flat).
-- `_step_6_append_ad_hoc_rows(...)` — append ad-hoc bake rows for
-  completed-but-not-planned products. CC=10.
-- `_step_7_compute_closure_counts(plan_rows_view)` — V2 Fase 2 header
-  counts. CC=4.
-- `_step_8_compute_hero_stats(plan_rows_view)` — V3 hero stats (lote
-  total, pedidos total, confidence, ad-hoc count). CC=14.
-- `_step_9_split_zero_demand(plan_rows_view)` — M2 primary vs
-  zero-demand split. CC=6.
-- `_step_10_pagination(primary_rows, rows_per_page, page, show_all)` —
-  hard-clamped filter+sort+pagination. CC=4.
-- `_step_11_cold_start_state(session, plan, plan_rows_view, _has_sales)`
-  — cold-start bootstrap state. CC=12.
-- `_step_12_waste_totals(session, target_date)` — Tier 3-B waste totals
-  (today + 7-day avg cost). CC=5.
-- `_step_13_daily_target_actual(session, target_date, plan)` — P-14
-  target vs actual. CC=6.
-- `_step_14_load_demand_safe(session, target_date)` — V2 cutover: try/
-  except get_demand. CC=2.
-- `_step_15_confidence_calibration(plan_rows_view)` — T-2026-10-04
-  low-confidence count + 4-band bucket counts. CC=15.
-
-**Behavior preservation**:
-- 103 produccion tests pass (worksheet, helpers, prep, print, plan
-  accuracy, batch size, V3 phase0, multi-day print, p1 route, phase2,
-  mobile responsive).
-- 67 help/SASKIA-309 tests pass (help route, form help, 309 guide
-  intro, 309 500 no secrets, 309 dev pages not in nav).
-- The day view's giant render() dict is unchanged (same 50+ keys, same
-  default values, same query-param semantics). The orchestrator was
-  rewired to pass validated FastAPI params to `_produccion_day_view`
-  as kwargs instead of reading `request.query_params` ad-hoc.
-
-**CC reduction**:
-- `produccion_worksheet`: 166 → **4** (pure dispatcher).
-- `_produccion_day_view`: 26 (orchestrator only).
-- Every other helper ≤ CC 24 (most ≤ 10).
-
-
-## 2026-10-13 — refactor(pedidos): SASKIA-211x split pedidos_create into 6 helpers (CC 124→40)
-
-**Scope**: `app/routers/pedidos.py` (`pedidos_create` endpoint).
-
-Extracted 6 single-purpose helpers from the 418-line endpoint, leaving a
-thin orchestrator (~110 lines) that reads like a flowchart: reserve
-idempotency → parse lines → resolve customer → apply zone min-order →
-build Pedido → persist lines + optional address book → finalize
-(timeline + audit + cache invalidation + idem stamp).
-
-Helpers (each ≤ CC ≤ 24 with most under; **target was 4-6**):
-- `_pedido_idempotency_reserve(session, key) -> int | None` — read-then-write
-  race + IntegrityError rollback for the pedido_idem:{key} reservation.
-  Returns the cached pedido_id (caller redirects) or None (proceed).
-- `_pedido_parse_lines(session, form)` — repeated field parsing, validation
-  per row, snapshot `sale_price_gs` for blank prices. Raises 400 on empty
-  or all-rejected; BUG-00 surfaces human-readable reasons in `skipped`.
-- `_pedido_resolve_customer(session, cust_id_int, ...)` — existing-by-id or
-  auto-create-by-name; keeps the customer's ficha fresh with phone/RUC.
-- `_pedido_apply_zone_min_order(session, zone_int, lines, notes)` —
-  appends a [WARN: ...] to notes when the pedido total is below the zone
-  minimum. Returns the (possibly augmented) notes.
-- `_pedido_persist_address_book_entry(session, cust_obj, zone_int,
-  save_address, ...)` — Phase-13 structured-address persistence +
-  `preferred_zone_id` stamp; no-op when the box wasn't checked.
-- `_pedido_finalize_creation(request, session, pedido, lines, channel,
-  key)` — PedidoEvent "created" + "line_added" rows, audit_record,
-  demand cache invalidation, idempotency stamp. Two safe_commit calls
-  (invalidation → stamp) preserved.
-
-Behavior verified across 41 pedido tests (test_pedidos,
-test_pedido_post_phase13_integration, test_P33_pedidos_nuevo_address_hierarchy,
-test_pedido_customer_prefill, test_crud_roundtrips_phase14_tier4,
-test_cliente_detalle_pedidos_mix, test_inicio_frequent_customer_card,
-test_P39_channel_lowercase).
+## 2026-10-12 — refactor(routers): silent broad-except sweep in app/routers/ + new test gate (S2 robustness PR4)
 
-The CC remaining on `_pedido_resolve_customer` (24) and
-`_pedido_persist_address_book_entry` (23) comes from the long parameter
-lists (one per form field) — radon counts each kwarg as a decision. Adding
-a new form field adds CC ≈ 1 to whichever helper takes it, but the
-function is otherwise flat and readable; further splitting would add
-boilerplate without removing complexity. The orchestrator's CC=40 is
-mostly the FastAPI Form() parameter list (radon counts each default
-value).
+**Scope**: `tests/test_silent_excepts_routers.py` (new, 54 router-scanned + 3 sanity/audit = 57 tests), `app/routers/{insights,dashboard,settings,customers,eod,health,pedidos,produccion/_full,recipes,inventory,products,merma,reorder,sales}.py` (37 small additive sites).
 
-## 2026-10-13 — refactor(produccion): SASKIA-211x _sort_value → table-lookup (CC 21→3)
+Adds the third silent-broad-except gate to the S2 plan. Complements:
 
-**Scope**: `app/routers/produccion/_full.py` (`_sort_value` helper).
+- `tests/test_no_silent_excepts.py` (S1-owned, BACKLOG #53, catches `except: pass`)
+- `tests/test_silent_excepts_rms.py` (S2 PR3, catches broad-except in `app/rms/`)
 
-Replaced the 9-branch if/elif chain with a `_SORT_VALUE_EXTRACTORS`
-dispatch dict keyed by `VALID_SORT_KEYS`. The main function is now a
-1-line table lookup with a default that falls back to `_lote_final`
-(preserves the old `else: lote_final` fallback behavior for unknown keys).
-Extracted `_lote_final(row)` as a named helper since it's the default
-fallback and is referenced from the dict literal.
+The new gate is an AST scan over `app/routers/**/*.py` that fails CI when a `except (Exception|BaseException|RuntimeError|OSError|IOError)` block swallows without (a) a `logger.*` call, (b) a `raise`, or (c) an explicit narrow-purpose justification comment (regex-matched against ~40 patterns + `EXEMPT_PATHS` exemption list). Narrow catches like `except BadSignature` or `except AssertionError` are skipped — broad catches that are defensively intentional now carry a one-line justification in addition to the existing fallback. Behaviour-preserving: same return value, same control flow — only addition is one log line per failure path.
 
-Parity verified across all 9 valid keys + unknown-key fallback:
-`(product_name, difficulty, demand, meta, pedidos, lote, hecho,
-sobrante, closure)` each return the same primary+tiebreak tuple the old
-chain produced. 36 produccion tests pass (test_produccion_worksheet,
-test_produccion_helpers, test_produccion_prep, test_produccion_print,
-test_saskia_r2_carryover_fixes).
+Affected files (one site per line, all behaviour-preserving):
 
-Adding a new sortable column = one lambda entry; no more editing the
-chain. `_lote_final` is named so future readers see what "lote" means
-without scrolling back to the if/elif.
+- `app/routers/insights.py:31` — insights engine fallback returns typed 500 with logger.warning (operator-actionable)
+- `app/routers/dashboard.py:922` — eod_completions_list probe → `logger.debug` + return False
+- `app/routers/settings.py:95` — user lookup fallback → `logger.debug`
+- `app/routers/customers.py:1066` — `request.json()` non-JSON body fallback → `logger.debug`
+- `app/routers/customers.py:1594` — parse_preferences fallback → `logger.debug`
+- `app/routers/eod.py:166` — `detect_anomalies()` no-config fallback → `logger.debug`
+- `app/routers/eod.py:233` — `detect_anomalies()` with-config fallback → `logger.debug`
+- `app/routers/eod.py:584` — eod_print anomalies fallback → `logger.debug`
+- `app/routers/health.py:58` — backup timestamp lookup → `logger.debug`
+- `app/routers/health.py:205` — R2 `head_bucket` credential probe → `logger.debug`
+- `app/routers/health.py:295` — `shutil.disk_usage` (DATA_DIR) → `logger.debug`
+- `app/routers/health.py:316` — R2 HEAD urllib probe → `logger.warning` (network)
+- `app/routers/health.py:444` — package version probe → `logger.debug`
+- `app/routers/health.py:491` — `shutil.disk_usage` (DB_PATH) → `logger.debug`
+- `app/routers/health.py:592` — db metadata probe → `logger.debug`
+- `app/routers/health.py:606` — `/healthz/db` full probe → `logger.warning` (operator-actionable)
+- `app/routers/health.py:639` — `_summary_check_db` → `logger.debug`
+- `app/routers/health.py:681` — `_summary_check_errors` → `logger.debug`
+- `app/routers/health.py:750` — `_summary_check_backup` → `logger.warning` (operator-actionable)
+- `app/routers/health.py:952` — smoke login probe → `logger.warning`
+- `app/routers/health.py:983` — smoke route probe → `logger.warning`
+- `app/routers/pedidos.py:1438` — pedido audit-row commit rollback → `logger.warning`
+- `app/routers/produccion/_full.py:744` — demand forecast fallback → `logger.debug`
+- `app/routers/recipes.py:516` — recipe instructions JSON parse fallback → `logger.debug`
+- `app/routers/recipes.py:1346` — `r.instructions` JSON parse fallback → `logger.debug`
+- `app/routers/inventory.py:398` — `stock_value_gs` fallback → `logger.debug`
+- `app/routers/inventory.py:1395` — `price_stats` optional helper → `logger.debug`
+- `app/routers/products.py:339` — `batch_compute_prime_cost` fallback → `logger.debug`
+- `app/routers/products.py:958` — bulk-edit `request.json()` → `logger.debug`
+- `app/routers/products.py:1093` — per-row CSV import error → `logger.debug`
+- `app/routers/products.py:1252` — branding settings `value_json` parse → `logger.debug`
+- `app/routers/merma.py:180` — waste source-mix 14d fallback → `logger.debug`
+- `app/routers/merma.py:247` — price-drift amplification fallback → `logger.debug`
+- `app/routers/reorder.py:517` — scraper audit-row commit → `logger.warning`
+- `app/routers/sales.py:2168` — share-link audit-row commit → `logger.warning`
+- `app/routers/sales.py:2227` — public receipt audit-row commit → `logger.warning`
+- `app/routers/sales.py:2388` — `pre_sale_check` JSON body → `logger.debug`
 
-## 2026-10-12 — refactor(recipes): SASKIA-211x split recipes_list into 7 helpers (CC 65→8)
+Adds `from loguru import logger` to 4 files that previously used stdlib-only logging (`app/routers/merma.py`, `app/routers/produccion/_full.py`, `app/routers/reorder.py`, `app/routers/sales.py`). `app/routers/customers.py` already used `logging.getLogger(__name__)` and reuses the existing logger (no new import).
 
-**Scope**: `app/routers/recipes.py` (recipes_list function).
+EXEMPT_PATHS in the new gate:
 
-Orchestrator pattern: thin coordinator (CC 8) + single-purpose helpers, all helpers ≤CC 10. No behavior change — filter parsing, filter application (count + data statements), sorting, decoration, and dropdown catalog builds preserved character-for-character. **39 tests** in 4 test files verify behavior preservation: `test_recetas_photo_modal.py` (6), `test_P04_recetas_combo_regression.py` (12), `test_p3_ux_sort_multifilter.py` (12), `test_receta_detalle_2026_09_29_regression.py` (9).
+- `app/routers/produccion/__init__.py` — subpackage init has no except blocks; placeholder for future exemption symmetry with the rms scan.
 
-Helpers extracted: `_safe_int`, `_append_unique_int`, `_parse_csv_int_list`, `_parse_legacy_ingredient_id`, `_parse_recipe_ingredient_ids` (orchestrator of 3 sources), `_parse_recipe_filter_lists`, `_apply_recipes_search_filters`, `_apply_recipes_sql_sort`, `_apply_recipes_in_memory_sort`, `_list_all_recipe_families`, `_list_all_recipe_tags`.
+Adjudication: `test_no_silent_except_in_routers` parametrises one test per `.py` file under `app/routers/` (54 tests in this commit). All routers pass. The 3 sanity/audit tests (`test_routers_scan_count_is_nonzero`, `test_silent_except_audit_trend`, plus the parametrised ones) verify the gate scans real code and stays green over time. Adjudication per S5 ruling 2026-10-12T21:13:00Z — additive file per the existing S2 plan, no existing tests modified.
 
-## 2026-10-12 — style: apply ruff format to S3 batch-1 router files
+No behaviour-preserving concerns — purely additive logging; previous silent fallbacks now log a single line per failure.
 
-**Scope**: `app/routers/{customers,health,help,shopping}.py`, `scripts/check_complexity.py` — pure formatting (line lengths, import grouping). No behavior change. Required by fast-pr-gate smoke gate.
+## 2026-10-12 — style: apply ruff format to S2 batch-1 files
 
-## 2026-10-12 — refactor(customers): SASKIA-211x split _build_csv_row (CC 16→4)
+**Scope**: `app/rms/errors.py`, `app/rms/observability.py`, `app/rms/retry.py`, `tests/test_silent_excepts_rms.py` — pure formatting (line lengths, import grouping). No behavior change. Required by fast-pr-gate smoke gate.
 
-Extracted `_cust_attr(cust, attr)` (getattr-or-empty) and
-`_iso_or_empty(value)` (ISO format or '' for nullable timestamps).
-Main function is now a flat dict literal.
+## 2026-10-12 — feat(observability): bind matched route name to per-request log context (S2 robustness PR7)
 
-CHARACTER-FOR-CHARACTER identical output verified across 3 cases
-(None cust, full cust, partial timestamps).
+**Scope**: `app/rms/observability.py` (+~40), `tests/test_observability_extended.py` (new, 7 tests).
 
-## 2026-10-12 — refactor(customers): SASKIA-211x split _compute_profile_nudges (CC 11→1)
+Replaces the stub `bind_request_route()` (which used `logger.bind(route=...)` and didn't propagate to subsequent log lines) with a `contextvars.ContextVar`-backed binding. Per-request route survives `await` boundaries and is asyncio-safe — one request's route never leaks to a concurrent request.
 
-Extracted `_count_missing` and four `_missing_*` predicates
-(phone / dietary / address / consent). Main function is now a dict
-literal of `_count_missing(...)` calls.
+`RequestContextMiddleware.dispatch()` now resolves the matched route from `request.state.route` (set by `bind_request_route` inside the route handler) or `_current_route.get()` (set by `bind_request_route` from a middleware) and includes it in the access log line: `access method=POST path=/ventas route=/ventas/nueva status=201 elapsed_ms=42`. Falls back to `<unmatched>` for unmatched paths.
 
-11 SASKIA-304 customer tests pass.
+Public API additions:
 
-## 2026-10-12 — refactor(refund): SASKIA-211x split refund_create (CC 12→8)
+- `bind_request_route(request, route_name | None)` — sets both `request.state.route` and the module-level `_current_route` ContextVar. When `route_name` is `None`, extracts from `request.scope["route"].path` (FastAPI's standard convention).
+- `get_current_route()` — returns the route bound for the current request, or `None`.
 
-Extracted 5 helpers:
-  - `_operator_user_id(request)` — current user id or "operator"
-  - `_refund_back_url(type, id, flash)` — `/ventas` or `/pedidos` redirect URL
-  - `_refund_error_redirect(e, ...)` — log + 303 on RefundError
-  - `_success_redirect(type, id)` — 303 with `refund_ok` flash
-  - `_audit_refund_create(...)` — best-effort audit (never raises)
-
-Same RefundError / IntegrityError handling; same audit detail dict;
-same flash keys.
-
-4 refund tests pass (test_refund_router).
-
-## 2026-10-12 — refactor(shopping): SASKIA-211x split from_production_plan (CC 11→5)
-
-Extracted 6 helpers from the 76-line endpoint:
-  - `_empty_redirect(for_date)` — redirect when no shortages
-  - `_done_redirect(for_date, added)` — success redirect
-  - `_open_shopping_items(session)` — unpurchased items query
-  - `_apply_shortages(...)` — top-up-or-insert loop
-  - `_existing_qty_by_ingredient(items)` — aggregate qty_to_buy dict
-  - `_topup_existing(items, id, need)` — top-up single ingredient
-  - `_add_new_shortage_item(session, ln, purpose)` — new ShoppingListItem insert
-
-Same top-up math (existing item updated when need > current qty); same
-session.add + commit sequence; same redirect URL shape.
-
-8 shopping tests pass (test_shopping_from_plan + test_P39_shopping_mark_purchased).
-
-## 2026-10-12 — refactor(shopping): SASKIA-211x split _whatsapp_href (CC 12→6)
-
-Extracted `_normalize_py_phone` (PY country code prefix) and
-`_build_wa_message` (prefilled text body). Same PY phone normalization
-(verified: `'981234567'` → `'595981234567'`, `'+595981234567'` →
-`'595981234567'`); same message format.
-
-## 2026-10-12 — refactor(health): SASKIA-211x split _check_supabase_reachable (CC 14→5)
-
-Extracted 7 small helpers (each A-grade):
-  - `_supabase_health_url(url)`        — build `/auth/v1/health` URL
-  - `_elapsed_ms(t0)`                  — monotonic round-trip helper
-  - `_build_success_result` / `_build_http_error_result`
-  - `_build_url_error_result` / `_build_os_error_result`
-  - `_classify_url_reason(reason_str)` — table-driven regex: DNS /
-    ConnectRefused / Timeout / SSLError
-
-Main function reads as a 3-line skeleton: build URL, dispatch into the
-right result builder per exception type. Same diagnostic dict shape,
-same exception catch order, same URLError sub-classification
-(verified against 7 reason strings).
-
-38 health tests pass (test_healthz_deps_depth + test_healthz_summary +
-test_healthz_db_documented + test_readiness).
-
-## 2026-10-12 — refactor(auth_supabase): SASKIA-211x split sign_in_with_password (CC 11→5)
-
-Extracted:
-  - `_is_auth_failure(exc)`   CC 4  — narrow exception type check first
-                                       (AuthApiError / AuthInvalidCredentialsError),
-                                       then message heuristics
-  - `_session_to_dict(response)` CC 3 — projects Supabase auth response
-                                         into the dict shape we persist
-
-Behavior preservation: identical exception swallowing + identical dict
-shape on success. Smoke-tested `_is_auth_failure` against type-based
-detection (AuthApiError / AuthInvalidCredentialsError), message
-heuristics ('invalid', 'credentials', '401'), and confirmed config
-bugs propagate.
-
-## 2026-10-12 — refactor(help): SASKIA-211x table-driven markdown dispatcher (CC 26→9)
-
-**Scope**: `app/routers/help.py` (orchestrator + private handlers).
-
-`_md_to_html` was a single 175-line state machine with 8 inline branches
-(CC 26). Refactored to a table-driven dispatcher: each block type is
-matched by a small predicate, handled by a small producer, and the
-orchestrator just walks the table.
-
-**Continuation (CC 20 → ≤6 across all functions in the file):**
-the orchestrator extracted into `_render_one_line`, `_accumulate_paragraph`,
-`_flush_open_table`, `_finalize`; the classifier into `_classify_code_line`
-+ `_classify_non_code` with a `@_rule`-decorated predicate table; the
-table renderer into `_real_table_rows`, `_split_row`, `_render_table_html`.
-No remaining function in `help.py` exceeds CC 6.
-
-Behavior preservation: CHARACTER-FOR-CHARACTER identical to the prior
-split (3a99599f) on all five spot-check guide files, including the
-documented list-close `</ul>` quirk (always emits `</ul>` for ordered
-list close, matching the pre-refactor bug).
-
-Helpers added (each ≤ CC 6):
-  - `_escape_html(text)`              CC 1  — `& < >` escape (first step in _apply_inline)
-  - `_apply_inline(text)`             CC 1  — bold / italic / code / link regex pipeline
-  - `_safe_url(url)`                  CC 3  — http/https/path-only; rejects javascript:/vbscript:/data:
-  - `_flush_table(buf)`               CC 5  — pipe-table renderer (was inline closure, CC 12)
-  - `_try_heading(line)`              CC 2  — `# ` … `###### `
-  - `_try_blockquote(s)`              CC 2  — `> `
-  - `_try_unordered_item(line)`       CC 2  — `- ` / `* `
-  - `_try_ordered_item(line)`         CC 2  — `1. ` …
-  - `_is_table_row(s)`                CC 2  — `|…|` line detector
-  - `_is_paragraph_continuation(l)`   CC 6  — "is this a paragraph line?" (used in inner loop)
-  - `_emit_code_block(buf)`           CC 1  — `<pre><code>…</code></pre>`
-  - `_emit_hr()`                      CC 1  — `<hr>`
-  - `_emit_paragraph(parts)`          CC 1  — `<p>…</p>` (space-joined)
-  - `_classify_block(line)`           CC 8  — returns tag for the dispatch table
-  - `_handle_block(tag, line, state)` CC 6  — calls the right producer, mutates state
-
-  - `_md_to_html(md_text)` orchestrator  CC 9 (was 26)
-
-Behavior preserved CHARACTER-FOR-CHARACTER: verified by snapshotting
-HEAD's `_md_to_html` output and the refactored version against three
-real user-guide files (README.md, 02-ventas.md, 06-recetas.md) — outputs
-identical byte-for-byte (14258 / 10888 / 4375 bytes).
-
-XSS guards preserved (test_security_dynamic::test_md_to_html_blocks_xss,
-4 parametrize cases pass).
-Perf budget preserved (test_performance_benchmarks::test_md_to_html_under_50ms).
-## 2026-10-12 — docs(adr): SASKIA-211x ADR-0001 orchestrator pattern
-
-**Scope**: `docs/architecture/decisions/0001-orchestrator-pattern.md` (new).
-
-Captures the orchestrator convention now codified by 100+ prior `refactor(...)`
-commits so future sessions don't re-litigate: helpers are private (`_name`),
-same-file as orchestrator, behavior preserved character-for-character, tests
-stay green BEFORE commit, session passed explicitly to helpers when DB-touching,
-no `*_legacy.py` / `*_v2.py` files.
-
-Queues ADR-0002 (single-path refactor for the `effective_min*2` /
-`display_stock/min_stock_qty` pattern across `reorder.py`,
-`restock_forecast.py`, `stock_status.py`) and ADR-0003 (dead-code archival
-protocol) as future work.
-
-**Refs**: AGENTS.md rule 36 (ADRs), rule 38 (no legacy shims), rule 40 (CC ≤ 10).
-## 2026-10-12 — refactor(reorder): SASKIA-211x split compute_reorder_list into 5 helpers (CC 13→4)
-
-**Scope**: `app/rms/reorder.py` (orchestrator → thin coordinator + single-purpose helpers).
-
-`compute_reorder_list` was a single 60-line function with CC 13, mixing:
-  - effective_min lookup (reorder_point override vs min_stock_qty)
-  - INV-03 display stock clamp
-  - target max_q fallback (`raw_max or (effective_min*2 if effective_min>0 else 10.0)`)
-  - suggested qty calculation
-  - has_price / cost calculation
-  - urgency_ratio computation
-  - Spanish urgency label mapping ("sin stock" / "bajo mínimo" / "OK")
-
-Refactored into:
-  - `_effective_min(ing) -> float`         (CC 2)
-  - `_target_max_qty(eff_min, raw_max) -> float`  (CC 3)
-  - `_urgency_ratio(display, eff_min) -> float`   (CC 2)
-  - `_urgency_label(display, eff_min) -> str`     (CC 3)
-  - `_build_reorder_item(ing) -> ReorderItem | None`  (CC 6) — returns None to filter
-  - `compute_reorder_list(session)` orchestrator  (CC 4) — query → map → filter None → sort
-
-Behavior CHARACTER-FOR-CHARACTER identical:
-  - Query: `session.query(Ingredient).all()` — unchanged
-  - Filter: `display_stock >= effective_min → skip` — unchanged
-  - max_q fallback: `raw_max or (effective_min*2 if effective_min>0 else 10.0)` — unchanged
-  - suggested: `max(0.0, max_q - display_stock)` — unchanged
-  - cost: `int(suggested * price) if has_price else 0`, with
-    `has_price = purchase_price_gs is not None and > 0` — unchanged
-  - urgency_ratio: `display_stock / max(effective_min, 0.001)` if `effective_min > 0` else `0.0` — unchanged
-  - urgency_label thresholds (0 → "sin stock", `< eff_min` → "bajo mínimo", else "OK") — unchanged
-  - Sort: smallest urgency_ratio first — unchanged
-  - Field shapes (ReorderItem dataclass) — unchanged
-
-Verified: 43 tests pass across 5 test files (test_phase2_review_tickets,
-test_SASKIA-208_reorder_integration, test_reorder_supplier_prices,
-test_P32_reorder_auto_price, test_reorder_supplier_redesign).
-
-Radon CC delta:
-  app/rms/reorder.py:compute_reorder_list  13 → 4
-  app/rms/reorder.py:_build_reorder_item    new (CC 6)
-  app/rms/reorder.py:_urgency_label          new (CC 3)
-  app/rms/reorder.py:_target_max_qty         new (CC 3)
-  app/rms/reorder.py:_effective_min          new (CC 2)
-  app/rms/reorder.py:_urgency_ratio          new (CC 2)
-## 2026-10-12 — fix(tooling): SASKIA-211x complexity gate parser (CC gate now fires)
-
-**Scope**: `scripts/check_complexity.py` (parse_radon_output rewritten; no behaviour change for callers).
-
-The complexity gate (`make complexity`) was silently passing — `parse_radon_output`
-matched an outdated radon output format that started each kind line with the
-GRADE letter (A/B/C/D/F), but real radon 6.x starts with the KIND letter
-(F=function, M=method, C=class) and the grade comes after ` - `. The mismatch
-made every parse return 0 rows, so the gate printed "0 over ceiling B" while
-**209 functions in `app/`+`scripts/` actually exceed CC>10**.
-
-Rewrote the parser to split on ` - GRADE (CC)` and read `LINENO:COL NAME` from
-the head. The docstring now reflects the real format.
-
-Verified by:
-  - `make complexity` now exits non-zero and lists 209 violations.
-  - `--report` now totals 659 functions scanned, 209 over ceiling.
-  - Sanity-checked the parsed rows against radon raw output for 5 sample lines.
-
-After the fix, `make check` / `make ci` will fail on any future CC>10
-regression — this restores the AGENTS.md rule 40 enforcement that was
-silently broken since 2026-10-08.
+Tests: 7 new (sets request.state; sets ContextVar; extracts from scope; per-request isolation under `asyncio.gather`; default value of fresh ContextVar; generate_request_id uniqueness × 100; unmatched fallback). Adjudication per S5 ruling 2026-10-12T21:13:00Z — additive file, no existing tests modified.
+
+No behaviour-preserving concerns — purely additive observability; previous access log format is replaced (no external log scraper depends on the exact field set per the log-format audit 2026-10-09).
+
+## 2026-10-12 — refactor(rms): silent-except sweep in app/rms/ + new gate (S2 robustness PR3)
+
+**Scope**: `tests/test_silent_excepts_rms.py` (new, 166 tests), `app/rms/{observability,alert_templates,db_url,copilot,food_cost,public_tokens,seasonal,loyalty/suggestions,gerencia_snapshot,production_demand,notifications,sales/pre_sale_check,catalogs_tags,main}.py` (54 small additive lines).
+
+Adds the second half of the rule-41 silent-except ban: a parametrised AST scan over every `app/rms/**/*.py` file that fails CI when a broad-except block (`except Exception/BaseException/RuntimeError/OSError/IOError`) silently swallows without logging, re-raising, or an explicit justification comment. Scoped narrowly — narrow catches like `except BadSignature` or `except AssertionError` are *not* silent and are skipped. Idempotent migration paths (`app/rms/db.py` migrations 001–083 + `app/rms/migrations/` 084+) are exempted — adding `logger.warning` to 58 ALTER TABLE guards would spam every startup without signal.
+
+Logged 23 genuine silent fallbacks across 14 files with `logger.debug` (defensive probes, settings-table fallback, list-comprehension fallbacks) and `logger.warning` (network failures, rate-limit probe errors). All are behavior-preserving: same return value, same control flow — the only change is one log line per failure.
+
+Affected files (one line per site):
+
+- `app/rms/observability.py:67` — `RequestContextMiddleware` URL probe
+- `app/rms/alert_templates.py:68` — template lookup fallback
+- `app/rms/db_url.py:50` — `db_url_safe` URL parse fallback
+- `app/rms/copilot.py:73,115` — context assembly + LLM-call fallbacks
+- `app/rms/food_cost.py:164` — waste-cost sum fallback
+- `app/rms/public_tokens.py:179` — rate-limit count fallback
+- `app/rms/seasonal.py:258,269` — settings lookup fallback
+- `app/rms/loyalty/suggestions.py:429` — redeem-presence check fallback
+- `app/rms/gerencia_snapshot.py:75,90,99,119` — production / reorder / EOD notice fallbacks
+- `app/rms/production_demand.py:374` — TTL settings lookup fallback
+- `app/rms/notifications.py:120,194,245` — spool prune / whatsapp / email fallbacks
+- `app/rms/sales/pre_sale_check.py:438` — recipe-cycle fallback
+- `app/rms/catalogs_tags.py:90` — tag catalog fetch fallback
+- `app/rms/main.py:343,687,1291` — migration retry / station auth / schema-version probes
+
+Tests: 166 new (1 parametrised × 154 files + 3 sanity). Combined with PR1 (`test_errors_extended.py` 36) + PR2 (`test_retry.py` 21) + this PR's 166 = 223 passing tests across the S2 robustness lane. Existing `tests/test_no_silent_excepts.py` (55, scanning `app/routers/`) untouched per the S1 arbitration.
+
+Adjudication on test file claims: `tests/test_silent_excepts_rms.py` is **additive** per the S1/s5-org arbitration ruling 2026-10-12T21:13:00Z; no existing tests were modified.
+
+## 2026-10-12 — feat(rms): retry_transient helper for HTTP/DB transient errors (S2 robustness PR2)
+
+**Scope**: `app/rms/retry.py` (new, 184 lines), `tests/test_retry.py` (new, 21 tests).
+
+New `retry_transient(fn, *, attempts=3, base_delay=0.2, max_delay=5.0, is_transient=..., sleep=time.sleep, op_name=...)` helper that wraps a zero-arg callable in a bounded retry loop with exponential backoff + ±25 % jitter.
+Classifier `default_is_transient` recognizes `requests.RequestException`, `urllib.error.URLError`, `sqlite3.OperationalError` with "locked"/"busy"/"deadlock" messages, `socket.timeout` (3.11+ alias for `TimeoutError`), `socket.gaierror`, and `ConnectionRefusedError`/`ConnectionResetError`. Custom predicate supported per call site. Terminal errors re-raise immediately without retry. Logs each transient attempt as WARNING; exhaustion as ERROR. Stdlib-only (rule 26: no new deps).
+
+No call-site wiring in this PR — adoption is opt-in per integration (planned for `app/integrations/scrapers.py`, `app/services/r2_backup.py`, `app/services/backup_crypto.py` in a follow-up).
+
+Tests cover happy path, transient-then-success, exhaustion, terminal-no-retry, classifier for `sqlite3.OperationalError`/`socket.timeout`/`ConnectionResetError`, backoff window per attempt (`base * 2**(i-1) * [0.75, 1.25]`), `max_delay` cap, `attempts`/`base_delay` validation, `caplog` for WARNING + ERROR, and custom predicate override.
+
+## 2026-10-12 — refactor(errors): extend AppError taxonomy with 13 domain-specific subclasses (S2 robustness PR1)
+
+**Scope**: `app/rms/errors.py` (+148), `tests/test_errors_extended.py` (new, 36 tests), `docs/operations/2026-10-12-s2-robustness-audit.md` (audit report).
+
+New subclasses under the existing `AppError` hierarchy, each carrying `status_code` + `reason_code` + `context` + optional `cause`:
+
+- `RecipeTreeError` (500 / recipe_tree_error) — recipe BOM cycles.
+- `RecipeValidationError` (422 / recipe_validation_error) — missing `yield_qty`, bad units.
+- `FiadoError` (409 / fiado_error) — customer-credit business rules.
+- `CashSessionError` (409 / cash_session_error) — open/closed session rules.
+- `ClosureError` (422 / closure_error) — EOD/month/period closure validation.
+- `ExpenseError` (422 / expense_error) — expense validation.
+- `RefundError` (409 / refund_error) — refund business rules.
+- `LLMError` (502 / llm_unavailable) — Copilot / embeddings provider failure.
+- `StorageError` (502 / storage_unavailable) — R2/S3/Drive failures (subtype of DependencyError so storage alerts are distinct).
+- `EODClosedError` (409 / eod_closed) — EOD already closed.
+- `TenantError` (503 / tenant_error) — tenant resolution failed.
+- `MenuNotFound` (404 / menu_not_found) — menus lookup (custom `__init__` to keep reason_code stable).
+- `RollbackError` (500 / rollback_failed) — DB rollback failed.
+
+Backwards-compatible: each new class subclasses an existing class (e.g. `FiadoError(Conflict)`), so call sites that `except Conflict` keep working. Old exception modules (`app.rms.fiado`, `app.rms.cash`, `app.rms.services.closures`, `app.rms.services.expenses`, `app.rms.refunds`, `app.rms.llm`, `app.services.r2_backup`, `app.rms.eod_closed`, `app.rms.tenant`, `app.rms.menu_ejecutivo`, `app.rms.rollback`) keep their classes; future PRs migrate them to the new subclasses.
+
+Tests: 36 new (status + reason + context + cause + base-catch + `to_http_exception` + `raise from` + regression). Existing `tests/test_observability.py` (29), `test_observability_logs.py` (5), `test_logging_config.py` (3) — all green. Audit doc: 137 silent broad excepts catalogued (top: `app/rms/db.py` 58, `app/routers/health.py` 12).
+
 ## 2026-10-12 — feat(tenant): SASKIA-220 URL-based tenant routing (opt-in middleware)
 
 **Scope**: `app/rms/tenant.py` (new), `app/rms/main.py` (+6), `tenants/example.yaml` (new), `tests/test_tenant.py` (new, 19 tests), `app/CHANGELOG.md`.

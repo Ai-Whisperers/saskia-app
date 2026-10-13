@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.auth import require_login_or_disabled as require_login
@@ -29,6 +30,9 @@ async def get_insights(
         insights = build_actionable_insights(session)
         return JSONResponse({"insights": insights})
     except Exception as e:
+        # Insights engine fallback — log + return a typed 500 so the operator
+        # sees the failure without losing the JSON contract.
+        logger.warning("insights engine failed: {}", e, exc_info=True)
         return JSONResponse(
             {"error": "Failed to retrieve insights", "detail": str(e)}, status_code=500
         )

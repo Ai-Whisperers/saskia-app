@@ -596,6 +596,9 @@ def _parse_recipe_form(form: dict) -> dict:
             try:
                 parsed = _json.loads(instructions_raw)
             except Exception:
+                # Defensive — malformed JSON in instructions falls through
+                # to the legacy plain-text path; UI still renders the recipe.
+                logger.debug("recipe instructions JSON parse fallback", exc_info=True)
                 parsed = None
 
         if isinstance(parsed, list) and all(
@@ -1423,6 +1426,9 @@ def _build_recipe_edit_context(
         try:
             phases = _json.loads(r.instructions)
         except Exception:
+            # Defensive — recipe.instructions may be JSON from an older
+            # deploy that fails to parse; legacy plain-text path runs.
+            logger.debug("recipe r.instructions JSON parse fallback", exc_info=True)
             phases = None
         if isinstance(phases, list):
             step_lines: list[str] = [

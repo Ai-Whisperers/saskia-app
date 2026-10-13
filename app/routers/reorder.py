@@ -13,6 +13,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -514,6 +515,9 @@ def reorder_scrape(
         )
         session.commit()
     except Exception:
+        # Scraper audit row is best-effort — don't fail the scrape over a
+        # failed audit commit. Operator still sees the scrape results.
+        logger.warning("reorder scraper audit commit failed", exc_info=True)
         session.rollback()  # don't fail the scrape over an audit miss
     return JSONResponse(payload)
 

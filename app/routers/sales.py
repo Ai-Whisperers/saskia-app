@@ -19,6 +19,7 @@ from fastapi.responses import (
     Response,
     StreamingResponse,
 )
+from loguru import logger
 from sqlalchemy import Select, func, or_, select, update
 from sqlalchemy.orm import Session, selectinload
 
@@ -2165,6 +2166,10 @@ def share_sale_recibo(
         )
         session.commit()
     except Exception:
+        # Share-link audit row is best-effort — the public token is already
+        # written to DB; failure here just means missing audit. Operator
+        # still sees the share confirmation page.
+        logger.warning("sale share-link audit commit failed", exc_info=True)
         session.rollback()
 
     public_url = f"/r/{token}"
@@ -2220,6 +2225,9 @@ def public_recibo(request: Request, token: str) -> HTMLResponse:
         try:
             session.commit()
         except Exception:
+            # Public receipt audit row is best-effort — the customer sees
+            # the receipt regardless; missing audit just degrades analytics.
+            logger.warning("sale public-recibo audit commit failed", exc_info=True)
             session.rollback()
 
         # Reuse the same recibo.html template the cashier sees. The
@@ -2381,6 +2389,9 @@ async def preflight_sale_multi(
     try:
         body = await request.json()
     except Exception:
+        # Defensive — pre-sale check accepts an empty payload and returns
+        # a typed 400 so the POS UI surfaces the validation gap.
+        logger.debug("sale pre_sale_check: request.json() fallback", exc_info=True)
         return JSONResponse(
             {
                 "error": "Invalid JSON body",
