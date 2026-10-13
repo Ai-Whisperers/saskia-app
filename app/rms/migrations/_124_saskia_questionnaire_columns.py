@@ -27,7 +27,7 @@ def _column_exists(conn: Any, table: str, column: str) -> bool:
     return any(row[1] == column for row in rows)
 
 
-def _migration_124_saskia226_questionnaire_columns(conn: Any) -> None:
+def _migration_124_saskia_questionnaire_columns(conn: Any) -> None:
     """Add the missing schema columns for the 2026-10-08 questionnaire
     and populate the operator's answers where already given (§22.1 +
     §22.2 of the 2026-10-08 onboarding questionnaire)."""

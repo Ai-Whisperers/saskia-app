@@ -108,7 +108,7 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _migration_122_saskia226_questionnaire_apply(conn: Any) -> None:
+def _migration_122_saskia_questionnaire_apply(conn: Any) -> None:
     """Apply the 5 settings_kv updates + 6 new inserts from the operator's
     questionnaire.
 

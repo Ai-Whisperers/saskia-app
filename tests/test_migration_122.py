@@ -73,12 +73,12 @@ def test_migration_122_overrides_placeholder_values(session_factory):
             )
         s.commit()
 
-    from app.rms.migrations._122_saskia226_questionnaire_apply import (
-        _migration_122_saskia226_questionnaire_apply,
+    from app.rms.migrations._122_saskia_questionnaire_apply import (
+        _migration_122_saskia_questionnaire_apply,
     )
 
     with session_factory().get_bind().connect() as conn:
-        _migration_122_saskia226_questionnaire_apply(conn)
+        _migration_122_saskia_questionnaire_apply(conn)
         conn.commit()
 
     with session_factory() as s:
@@ -102,12 +102,12 @@ def test_migration_122_idempotent_when_already_correct(session_factory):
     # operator's values via the seeder. We just verify that re-running
     # the migration does not change anything.
 
-    from app.rms.migrations._122_saskia226_questionnaire_apply import (
-        _migration_122_saskia226_questionnaire_apply,
+    from app.rms.migrations._122_saskia_questionnaire_apply import (
+        _migration_122_saskia_questionnaire_apply,
     )
 
     with session_factory().get_bind().connect() as conn:
-        _migration_122_saskia226_questionnaire_apply(conn)
+        _migration_122_saskia_questionnaire_apply(conn)
         conn.commit()
 
     with session_factory() as s:
@@ -138,12 +138,12 @@ def test_migration_122_inserts_when_key_missing(session_factory):
         )
         s.commit()
 
-    from app.rms.migrations._122_saskia226_questionnaire_apply import (
-        _migration_122_saskia226_questionnaire_apply,
+    from app.rms.migrations._122_saskia_questionnaire_apply import (
+        _migration_122_saskia_questionnaire_apply,
     )
 
     with session_factory().get_bind().connect() as conn:
-        _migration_122_saskia226_questionnaire_apply(conn)
+        _migration_122_saskia_questionnaire_apply(conn)
         conn.commit()
 
     with session_factory() as s:
@@ -178,12 +178,12 @@ def test_migration_122_inserts_saskia221_keys_does_not_overwrite(session_factory
         )
         s.commit()
 
-    from app.rms.migrations._122_saskia226_questionnaire_apply import (
-        _migration_122_saskia226_questionnaire_apply,
+    from app.rms.migrations._122_saskia_questionnaire_apply import (
+        _migration_122_saskia_questionnaire_apply,
     )
 
     with session_factory().get_bind().connect() as conn:
-        _migration_122_saskia226_questionnaire_apply(conn)
+        _migration_122_saskia_questionnaire_apply(conn)
         conn.commit()
 
     with session_factory() as s:

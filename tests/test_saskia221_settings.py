@@ -164,7 +164,11 @@ def test_saskia221_seeder_populates_6_answered_settings(session_factory):
         assert get_setting_value(s, "contact.phone") == "+595 991 683805"
         assert get_setting_value(s, "contact.email") == "La.vaquitaholandesa@gmail.com"
         # LOCATION
-        assert get_setting_value(s, "location.city") == "Asuncion"
+        # SASKIA-226: migration 122 writes the operator's literal
+        # answer "Asunción" (with accent); the seeder's default
+        # is ASCII "Asuncion". Migration 122 wins on init_db
+        # because it runs first and the seeder has skip-on-existing.
+        assert get_setting_value(s, "location.city") == "Asunción"
         assert get_setting_value(s, "location.department") == "Central"
 
 

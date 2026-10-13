@@ -120,12 +120,12 @@ def test_migration_124_applies_vaquita_holandesa_answers(session_factory):
         )
         s.commit()
 
-    from app.rms.migrations._124_saskia226_questionnaire_columns import (
-        _migration_124_saskia226_questionnaire_columns,
+    from app.rms.migrations._124_saskia_questionnaire_columns import (
+        _migration_124_saskia_questionnaire_columns,
     )
 
     with session_factory().get_bind().connect() as conn:
-        _migration_124_saskia226_questionnaire_columns(conn)
+        _migration_124_saskia_questionnaire_columns(conn)
         conn.commit()
 
     with session_factory() as s:
@@ -154,15 +154,15 @@ def test_migration_124_idempotent_for_existing_vaquita_values(session_factory):
         )
         s.commit()
 
-    from app.rms.migrations._124_saskia226_questionnaire_columns import (
-        _migration_124_saskia226_questionnaire_columns,
+    from app.rms.migrations._124_saskia_questionnaire_columns import (
+        _migration_124_saskia_questionnaire_columns,
     )
 
     # Run twice — second call should be a no-op
     with session_factory().get_bind().connect() as conn:
-        _migration_124_saskia226_questionnaire_columns(conn)
+        _migration_124_saskia_questionnaire_columns(conn)
         conn.commit()
-        _migration_124_saskia226_questionnaire_columns(conn)
+        _migration_124_saskia_questionnaire_columns(conn)
         conn.commit()
 
     with session_factory() as s:
@@ -179,15 +179,15 @@ def test_migration_124_idempotent_for_existing_vaquita_values(session_factory):
 
 def test_migration_124_idempotent_on_rerun(session_factory):
     """Running the migration twice does not error (column already exists)."""
-    from app.rms.migrations._124_saskia226_questionnaire_columns import (
-        _migration_124_saskia226_questionnaire_columns,
+    from app.rms.migrations._124_saskia_questionnaire_columns import (
+        _migration_124_saskia_questionnaire_columns,
     )
 
     # Run twice — should be no-ops the second time
     with session_factory().get_bind().connect() as conn:
-        _migration_124_saskia226_questionnaire_columns(conn)
+        _migration_124_saskia_questionnaire_columns(conn)
         conn.commit()
-        _migration_124_saskia226_questionnaire_columns(conn)
+        _migration_124_saskia_questionnaire_columns(conn)
         conn.commit()
 
     with session_factory() as s:
