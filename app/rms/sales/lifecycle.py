@@ -76,6 +76,12 @@ def apply_sale(
     ingredient's stock_qty is decremented by packaging_qty, and a
     StockMovement audit row is written.
 
+    Orchestrator: validates input, loads the product, persists the Sale
+    row, then dispatches to the packaging- and recipe-stock helpers. The
+    two stock-movement branches are single-purpose so each can be graded
+    on its own; the orchestrator only carries the control flow and the
+    final commit + return shape.
+
     Raises:
         ProductWithoutRecipe: if product has no recipe (sale is still saved,
             but with has_recipe=False and zero stock moves).
@@ -85,39 +91,13 @@ def apply_sale(
             packaging_qty is negative, or both/neither packaging_* params
             are set inconsistently.
     """
-    if qty <= 0:
-        raise ValueError(f"qty must be > 0, got {qty}")
+    _validate_apply_sale_input(qty, packaging_item_id, packaging_qty)
+    packaging_item = _resolve_packaging_ingredient(session, packaging_item_id, packaging_qty)
 
-    # US 4.1 packaging validation
-    packaging_item: Ingredient | None = None
-    if packaging_item_id is not None:
-        if packaging_qty is None or packaging_qty <= 0:
-            raise ValueError(
-                f"packaging_qty must be > 0 when packaging_item_id is set, got {packaging_qty!r}"
-            )
-        packaging_item = session.get(Ingredient, packaging_item_id)
-        if packaging_item is None:
-            raise ValueError(f"Packaging ingredient {packaging_item_id} not found")
-        if not packaging_item.is_packaging:
-            raise ValueError(
-                f"Ingredient {packaging_item_id} ({packaging_item.name!r}) is "
-                f"not flagged as packaging. Set is_packaging=True on the "
-                f"ingredient first."
-            )
-    elif packaging_qty is not None and packaging_qty > 0:
-        raise ValueError(f"packaging_qty={packaging_qty} was set without packaging_item_id")
-
-    product = session.get(Product, product_id)
-    if product is None:
-        raise ValueError(f"Product {product_id} not found")
-
-    # Snapshot price at sale time
-    unit_price_gs = (
-        unit_price_gs_override if unit_price_gs_override is not None else product.sale_price_gs
+    product, unit_price_gs, total_price_gs = _build_sale_row_and_price(
+        session, product_id, qty, unit_price_gs_override
     )
-    total_price_gs = to_int_gs(Decimal(str(qty)) * Decimal(str(unit_price_gs)))
 
-    # Create sale row
     sale = Sale(
         sold_at=sold_at,
         product_id=product_id,
@@ -140,18 +120,7 @@ def apply_sale(
 
     # US 4.1 — decrement packaging stock + audit row.
     if packaging_item is not None and packaging_qty is not None and packaging_qty > 0:
-        packaging_item.stock_qty = (packaging_item.stock_qty or 0) - packaging_qty
-        stock_movement = StockMovement(
-            ingredient_id=packaging_item.id,
-            movement_type="sale",
-            qty=-abs(packaging_qty),
-            reason=f"Venta #{sale.id} (packaging)",
-            reference_id=sale.id,
-            reference_type="sale",
-            recorded_at=sold_at,
-            created_by=None,
-        )
-        session.add(stock_movement)
+        _apply_packaging_stock_movement(session, packaging_item, packaging_qty, sale, sold_at)
 
     has_recipe = product.recipe_id is not None
     stock_moves: list[tuple[int, float]] = []
@@ -166,34 +135,12 @@ def apply_sale(
                 f"Receta '{recipe.name}' sin rendimiento. Cargá el rendimiento antes de vender."
             )
         else:
-            try:
-                # Walk tree, collect (affected_recipe_id, ingredient_id, qty_delta)
-                moves = _compute_stock_moves(session, recipe, qty, set())
-                # Migration 092 dropped the sale_stock_move table — the
-                # StockMovement audit rows below are the only ledger now
-                # (movement_type='sale', reference_type='sale'). The old
-                # Phase-14 dual-write raised TypeError the moment the
-                # deprecated SaleStockMove stub was instantiated.
-                for _affected_recipe_id, ingredient_id, qty_delta in moves:
-                    ingredient = session.get(Ingredient, ingredient_id)
-                    if ingredient is not None:
-                        ingredient.stock_qty = (ingredient.stock_qty or 0) - abs(qty_delta)
-                    stock_moves.append((ingredient_id, -abs(qty_delta)))
-                    # Write StockMovement audit record (negative qty = stock out)
-                    stock_movement = StockMovement(
-                        ingredient_id=ingredient_id,
-                        movement_type="sale",
-                        qty=-abs(qty_delta),
-                        reason=f"Venta #{sale.id}",
-                        reference_id=sale.id,
-                        reference_type="sale",
-                        recorded_at=sold_at,
-                        created_by=None,
-                    )
-                    session.add(stock_movement)
-            except CycleInRecipeTree:
-                cycle_warning = True
-                # Sale is still saved; stock moves are not applied.
+            # Returns (stock_moves, cycle_warning) so the orchestrator
+            # stays free of the loop body; see _apply_recipe_stock_movements
+            # for the per-move decrement + StockMovement audit rows.
+            stock_moves, cycle_warning = _apply_recipe_stock_movements(
+                session, recipe, qty, sale, sold_at
+            )
 
     session.commit()
 
@@ -207,6 +154,168 @@ def apply_sale(
         stock_moves=stock_moves,
         cycle_warning=cycle_warning,
     )
+
+
+# --- apply_sale helpers (orchestrator pattern — S3 batch-8) ---
+
+
+def _validate_apply_sale_input(
+    qty: float, packaging_item_id: int | None, packaging_qty: float | None
+) -> None:
+    """Validate apply_sale() top-level args + packaging-parameter consistency.
+
+    Lifted from apply_sale() so the orchestrator stays free of value-shape
+    branches. Raises ValueError with the SAME messages the pre-split inline
+    code did, character-for-character, so the packaging-focused tests in
+    tests/test_saskia_r2_sale_packaging.py (4 rejection cases) keep passing
+    without modification.
+    """
+    if qty <= 0:
+        raise ValueError(f"qty must be > 0, got {qty}")
+
+    if packaging_item_id is not None:
+        if packaging_qty is None or packaging_qty <= 0:
+            raise ValueError(
+                f"packaging_qty must be > 0 when packaging_item_id is set, got {packaging_qty!r}"
+            )
+    elif packaging_qty is not None and packaging_qty > 0:
+        raise ValueError(f"packaging_qty={packaging_qty} was set without packaging_item_id")
+
+
+def _resolve_packaging_ingredient(
+    session: Session,
+    packaging_item_id: int | None,
+    packaging_qty: float | None,
+) -> Ingredient | None:
+    """Load + validate the packaging Ingredient (or None when not used).
+
+    Returns the Ingredient if both `packaging_item_id` and a positive
+    `packaging_qty` were supplied, else None. Raises ValueError with the
+    SAME messages the pre-split inline code did when:
+      - the ingredient id does not exist;
+      - the ingredient exists but `is_packaging` is False on it.
+
+    Split out of apply_sale() so the packaging-classification branches
+    (and their long Spanish user-facing error strings) stay together.
+    """
+    if packaging_item_id is None:
+        return None
+    # packaging_qty>0 (or None) already guarded by _validate_apply_sale_input
+    packaging_item = session.get(Ingredient, packaging_item_id)
+    if packaging_item is None:
+        raise ValueError(f"Packaging ingredient {packaging_item_id} not found")
+    if not packaging_item.is_packaging:
+        raise ValueError(
+            f"Ingredient {packaging_item_id} ({packaging_item.name!r}) is "
+            f"not flagged as packaging. Set is_packaging=True on the "
+            f"ingredient first."
+        )
+    return packaging_item
+
+
+def _build_sale_row_and_price(
+    session: Session,
+    product_id: int,
+    qty: float,
+    unit_price_gs_override: int | None,
+) -> tuple[Product, int, int]:
+    """Load the Product and snapshot (unit_price_gs, total_price_gs) for this sale.
+
+    Returns (product, unit_price_gs, total_price_gs). The `unit_price_gs`
+    snapshot uses `unit_price_gs_override` when provided, otherwise falls
+    back to `product.sale_price_gs`. `total_price_gs` is computed via
+    `to_int_gs` per the money-math rule (rule 2 — Decimal → int is only
+    legal through `to_int_gs`).
+
+    Raises ValueError if the product does not exist (same message as
+    before).
+    """
+    product = session.get(Product, product_id)
+    if product is None:
+        raise ValueError(f"Product {product_id} not found")
+
+    # Snapshot price at sale time
+    unit_price_gs = (
+        unit_price_gs_override if unit_price_gs_override is not None else product.sale_price_gs
+    )
+    total_price_gs = to_int_gs(Decimal(str(qty)) * Decimal(str(unit_price_gs)))
+    return product, unit_price_gs, total_price_gs
+
+
+def _apply_packaging_stock_movement(
+    session: Session,
+    packaging_item: Ingredient,
+    packaging_qty: float,
+    sale: Sale,
+    sold_at: datetime,
+) -> None:
+    """Decrement packaging stock_qty and write the packaging StockMovement audit row.
+
+    Mirrors the pre-split inline code character-for-character: absolute
+    value on the qty delta (recipe qty may be negative in pathological
+    schema states), reason string `f"Venta #{sale.id} (packaging)"`,
+    reference_type / reference_id tied to the new sale.
+    """
+    packaging_item.stock_qty = (packaging_item.stock_qty or 0) - packaging_qty
+    stock_movement = StockMovement(
+        ingredient_id=packaging_item.id,
+        movement_type="sale",
+        qty=-abs(packaging_qty),
+        reason=f"Venta #{sale.id} (packaging)",
+        reference_id=sale.id,
+        reference_type="sale",
+        recorded_at=sold_at,
+        created_by=None,
+    )
+    session.add(stock_movement)
+
+
+def _apply_recipe_stock_movements(
+    session: Session,
+    recipe: Recipe,
+    sale_qty: float,
+    sale: Sale,
+    sold_at: datetime,
+) -> tuple[list[tuple[int, float]], bool]:
+    """Walk the recipe tree and write one StockMovement per ingredient consumed.
+
+    Returns (stock_moves, cycle_warning). CycleInRecipeTree is caught and
+    turned into the same `cycle_warning=True` signal the pre-split inline
+    code emitted — the sale row stays committed; stock_moves is empty in
+    that case so the caller can rely on `len(stock_moves) == 0` as the
+    downstream "did stock move?" signal.
+
+    The migration-092 ledger note lives here (was inline before): the
+    sale_stock_move table is gone; the StockMovement rows below (movement_type
+    'sale', reference_type 'sale') ARE the audit ledger. The SaleStockMove
+    stub that Phase-14 tried to dual-write to was deleted in migration 092.
+    """
+    try:
+        # Walk tree, collect (affected_recipe_id, ingredient_id, qty_delta)
+        moves = _compute_stock_moves(session, recipe, sale_qty, set())
+    except CycleInRecipeTree:
+        # Sale is still saved; stock moves are not applied.
+        return [], True
+
+    stock_moves: list[tuple[int, float]] = []
+    for _affected_recipe_id, ingredient_id, qty_delta in moves:
+        ingredient = session.get(Ingredient, ingredient_id)
+        if ingredient is not None:
+            ingredient.stock_qty = (ingredient.stock_qty or 0) - abs(qty_delta)
+        stock_moves.append((ingredient_id, -abs(qty_delta)))
+        # Write StockMovement audit record (negative qty = stock out)
+        stock_movement = StockMovement(
+            ingredient_id=ingredient_id,
+            movement_type="sale",
+            qty=-abs(qty_delta),
+            reason=f"Venta #{sale.id}",
+            reference_id=sale.id,
+            reference_type="sale",
+            recorded_at=sold_at,
+            created_by=None,
+        )
+        session.add(stock_movement)
+    return stock_moves, False
 
 
 def _compute_stock_moves(
