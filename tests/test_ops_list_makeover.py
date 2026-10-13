@@ -157,19 +157,34 @@ def test_bank_leads_with_fecha_importe_and_conciliacion():
     assert src.count("<ui-kpi-card") == 4
     filtros = src.find("<summary>Filtros</summary>")
     assert filtros > 0
+    filtros_tag = src.rfind("<details", 0, filtros)
+    assert filtros_tag >= 0
+    tag = src[filtros_tag:filtros]
+    assert "reorder-menu" not in tag
+    assert " open" not in tag
     filtros_end = src.find("</details>", filtros)
     assert filtros_end > filtros
     panel = src[filtros:filtros_end]
+    assert "reorder-menu" not in panel
     for token in (
         "currency=EUR",
         "currency=PYG",
         'name="start_date"',
         'name="end_date"',
+        'name="category"',
+        'name="currency"',
+        'name="reconciled"',
+        'type="hidden"',
         'action="/bank"',
         "/bank/export.csv",
         "categories",
+        "active_category",
     ):
         assert token in panel, token
+    limpiar = panel.find(">Limpiar</a>")
+    assert limpiar > 0
+    guard = panel.rfind("{%", 0, limpiar)
+    assert "active_category" in panel[guard:limpiar]
     assert ">Filtros</button>" not in src
 
     add = src.find("Agregar movimiento manualmente")
@@ -192,7 +207,8 @@ def test_bank_leads_with_fecha_importe_and_conciliacion():
     lead = tbody[:details]
     assert 'action="/bank/{{ tx.id }}/reconcile"' in lead
     assert 'action="/bank/{{ tx.id }}/unreconcile"' in lead
-    assert "tx.posted_at" in lead
+    assert "tx.posted_at.strftime('%d/%m/%Y')" in lead
+    assert "%Y-%m-%d" not in lead
     assert "tx.amount" in lead
     parked = tbody[details:]
     for label in ("Cuenta", "Categoría", "Contraparte", "Descripción"):

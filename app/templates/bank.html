@@ -68,9 +68,9 @@
   </div>
 </div>
 
-<details class="reorder-menu mb-3"{% if request.query_params.get('start_date') or request.query_params.get('end_date') or active_currency or active_category %} open{% endif %}>
+<details class="card mb-3">
   <summary>Filtros</summary>
-  <div class="reorder-menu__panel" style="min-width:20rem;max-width:min(40rem,calc(100vw - 2rem));">
+  <div class="card-body" style="display:flex;flex-direction:column;align-items:flex-start;gap:0.75rem;">
     <div class="btn-group" role="group" aria-label="Currency filter">
       <a href="/bank?{% for key, value in request.query_params.items() %}{% if key != 'currency' and key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}"
          class="btn {% if not active_currency %}btn-primary{% else %}btn-outline-primary{% endif %}">
@@ -94,6 +94,9 @@
     </div>
     {% endif %}
     <form method="get" action="/bank" class="row g-3" style="width:100%;">
+      <input type="hidden" name="category" value="{{ active_category or '' }}">
+      <input type="hidden" name="currency" value="{{ active_currency or '' }}">
+      <input type="hidden" name="reconciled" value="{{ active_reconciled or '' }}">
       <div class="col">
         <label for="start_date">Desde</label>
         <!-- lint_tier1-disable-next-line — date filter in GET form, native is simpler -->
@@ -106,7 +109,7 @@
       </div>
       <div class="col d-flex align-items-end">
         <button type="submit" class="btn btn-primary">Filtrar</button>
-        {% if request.query_params.get('start_date') or request.query_params.get('end_date') or active_currency %}
+        {% if request.query_params.get('start_date') or request.query_params.get('end_date') or active_currency or active_category %}
         <a href="/bank" class="btn btn-secondary ms-2">Limpiar</a>
         {% endif %}
       </div>
@@ -193,7 +196,7 @@
     <tr>
       <td>
         <div class="ops-list__l1">
-          <div class="bank-list__fecha">{{ tx.posted_at.strftime('%Y-%m-%d') }}</div>
+          <div class="bank-list__fecha">{{ tx.posted_at.strftime('%d/%m/%Y') }}</div>
           <div class="bank-list__importe ops-list__num tx-positive {% if tx.amount <= 0 %}tx-negative{% endif %}">
             {{ '+' if tx.amount > 0 else '' }}{{ "%.2f"|format(tx.amount) }}
           </div>

@@ -1,4 +1,11 @@
 
+## 2026-10-13 — Banco Filtros stays in the page flow
+
+Filtros is an in-flow disclosure, so an active filter no longer covers
+Agregar movimiento or the list. Filtrar keeps category, currency, and
+reconciled. Limpiar shows when a category filter is active. Movement
+dates show as DD/MM/YYYY.
+
 ## 2026-10-13 — Proveedores, movimientos, caja, banco, and fiado stay one click deep
 
 Proveedores leads with the name, the phone, and Nuevo proveedor. Contact,
