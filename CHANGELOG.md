@@ -1,3 +1,44 @@
+## 2026-10-13 — test(s1-batch10): parametrize batch_compute_prime_cost + import_benchmarks (CC 28 + 26, D-grade, +15 cases)
+
+**Scope**: `tests/test_d_grade_helpers_batch10.py` (new, ~750 lines). Continues the s1 batch-3/4/5/6/7/8/9 helper-coverage sweep (#174, #178, #179, #181, #184, #186, #189). Picks the next 2 fresh D-grade offenders from `uv run scripts/check_complexity.py | awk '/ D cc=2[0-9]/'` — `batch_compute_prime_cost` (CC 28, D-grade) and `import_benchmarks` (CC 26, D-grade) — both pure SQLAlchemy / in-memory consumers (no FastAPI Request/Depends context), so they're called directly with `session_factory()` + their data inputs.
+
+**Helpers covered**:
+
+### (1) `app/rms/prime_cost.py:batch_compute_prime_cost` — CC 28 (radon D-grade)
+
+8 scenarios: `empty_list_returns_empty_dict`, `no_compliance_info_uses_defaults`, `compliance_info_present_uses_overrides`, `product_without_recipe_notes_no_recipe`, `yield_percentage_085_scales_materials`, `yield_percentage_above_1_0_notes_invalid`, `recipe_without_labor_minutes_notes_informal`, `full_breakdown_populates_prime_and_margin`.
+
+Locks the orchestrator's `if not products: return {}` early return, the `session.get(ComplianceInfo, 1)` not-found → defaults branch, the operator-configured labor_rate / overhead_pct path, the "Producto sin receta" note (no recipe), the yield-correction decimal path with `_apply_yield_correction` + the `0 < yield_pct <= 1.0` validity gate, the "yield_percentage inválido" note (yield > 1.0), the "sin tiempo de mano de obra (informal — no bloquea)" note (`recipe.direct_labor_minutes` is None / ≤ 0), and the full-breakdown composite path (recipe + yield + labor + overhead + sale_price → prime_cost_gs + gross_margin + pct).
+
+The compliance_info row is updated via `session.get(ComplianceInfo, 1)` first then write-through (mirrors `tests/test_costing_yield_labor.py`) — direct INSERT collides with the conftest pre-seed. Public signature `batch_compute_prime_cost(session: Session, products: Sequence[Product]) -> dict[int, PrimeCostBreakdown]` is unchanged so the existing `tests/test_prime_cost_batched.py` (5 cases) keeps passing without modification.
+
+### (2) `scripts/import_herebus_data.py:import_benchmarks` — CC 26 (radon D-grade)
+
+7 scenarios: `sheet_missing_returns_zero`, `header_row_is_row_zero`, `header_buried_after_junk_rows`, `row_shorter_than_header_skipped`, `label_matches_existing_recipe_first_word`, `duplicate_product_label_skipped`, `mixed_skip_and_add`.
+
+Locks the `get_sheet(dump, ...)` missing-sheet → return-0 branch, the `hdr_idx = 0` initial path, the buried-header `hdr_idx = i` break-out scan (rows whose cell contains "Producto"/"ID"/"Supplier" are the real header), the `len(row) < n_header_len` short-row skip, the blank-Producto-cell skip (`if not row[idx.get("Producto", 0)]: continue`), the "TOTAL" string skip (`if "TOTAL" in str(label): continue`), the first-word match `rn_low.startswith(first_word)` path (and the fallback `label_low in rn_low or rn_low.replace("_", " ") in label_low`), and the `existing = ...; if existing: continue` idempotency-on-product_label branch.
+
+Both helpers had **no direct parametrized coverage** before this file. The `_PrimeSpec` + `_BenchSpec` dataclasses capture per-row DB state + dump shape; the test driver seeds the minimum Recipe/Product/ComplianceInfo/MarketBenchmark state (via `tests/factories.py` + `Recipe(name=...)` direct construction) and asserts integer Gs. fields + note-list contents + MarketBenchmark row count.
+
+The `_ROWS` (8 rows) and `_ROWS_BENCH` (7 rows) lists double as the row-count doc tests (`assert len(_ROWS) == 8` + `assert len(_ROWS_BENCH) == 7`) so adding/removing a row forces a CHANGELOG note — same pattern as #174, #178, #179, #181, #184, #186, #189.
+
+**Helpers skipped** (already covered in prior PRs or out of scope for this sweep):
+
+- `libro_ventas` — already covered in #174 (batch 3)
+- `bank_list`, `shopping_list_index` — already covered in #178 (batch 4)
+- `margin_drift_all`, `from_workbook` — already covered in #179 (batch 5)
+- `_pedido_resolve_customer`, `_pedido_persist_address_book_entry` — already covered in #181 (batch 6)
+- `_step_5_build_recipe_row`, `_restock_for_target` — already covered in #184 (batch 7)
+- `plan_production`, `forecast_restock` — already covered in #186 (batch 8)
+- `compute_plan_accuracy`, `libro_ventas (re-pick)` — already covered in #189 (batch 9)
+- `_validate_workbook` (CC 28) — exercised indirectly by `tests/test_excel_patch.py::test_dryrun_*`
+- `_import_patch_ingredientes` (CC 23) — covered by `tests/test_excel_patch.py::test_patch_ingredientes_*`
+- `verify_catalog_on_vps.py main` (CC 22) — covered by `tests/test_verify_catalog_on_vps.py`
+- `apply_sale` (CC 25, D → B per SASKIA-211aa) — exercised by 28+ test files via the full sale-creation path
+- remaining D-grade offenders (evidencia_importar, _produccion_day_view, produccion_shift_execute, _seed_sales_90_days_of_realistic_data, import_bank_transactions, produccion_print, reclassify) — out of scope for s1 (subsequent batches or sibling sessions)
+
+**Verification**: `uv run rtk pytest tests/test_d_grade_helpers_batch10.py --no-cov` → 15 passed. Ruff check + ruff format: clean.
+
 ## 2026-10-13 — refactor(rms): SASKIA-211aa split apply_sale (CC 25 → 10, D → B, 5 helpers)
 
 **Scope**: `app/rms/sales/lifecycle.py` (orchestrator + 5 private helpers, +179/-70). Continues the s3 batch-3/4/5/6/7 orchestrator pattern (most-recent: `_resolve_target` in batch-7 / PR #188). `apply_sale` is the SINGLE write path for the StockMovement audit row on every sale (rule 8); the refactor preserves every branch character-for-character so the 4 packaging-rejection cases + the 3 product-stock-movement cases in `tests/test_saskia_r2_sale_packaging.py` + `tests/test_sale_create_writes_stock_movement.py` keep passing without modification.
