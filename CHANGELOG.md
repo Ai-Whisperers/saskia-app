@@ -1,3 +1,31 @@
+## 2026-10-13 — test(s1-batch5): parametrize margin_drift_all + from_workbook (CC 22 + D-grade, +13 cases, 33%→~35%)
+
+**Scope**: `tests/test_d_grade_helpers_batch5.py` (new, ~570 lines).
+
+Drives two D-grade helpers through a parametrized driver (`@pytest.mark.parametrize("spec", _ROWS, ids=lambda s: s["id"])`). Both helpers are pure SQLAlchemy / openpyxl functions (no FastAPI Request/Depends context), so they're called directly with `session_factory()` rather than via the TestClient `client` fixture.
+
+- **`app/rms/product_price_history.py:margin_drift_all`** — CC 22 (radon D-grade) — 7 scenarios:
+  - `empty_db` — no sales → returns `[]` (early-return branch)
+  - `price_increase_margin_grew` — 2 sales (5000 → 7000) with priced recipe (cost=2000) → margin +2000
+  - `price_decrease_margin_eroded` — 2 sales (8000 → 6000) with priced recipe → margin -2000
+  - `no_recipe_none_margins` — no recipe → `first_margin_gs`/`last_margin_gs`/`margin_change_gs` all `None` (the P-26 trigger)
+  - `multi_product_window` — 2 products both with sales → both returned; documents that the `min_sales=2` parameter is currently declared-but-unused in the function body (future fix to wire through `GROUP BY ... HAVING count(*) >= min_sales` will force a CHANGELOG note)
+  - `voided_sale_excluded` — middle sale voided → excluded from drift (locks the `Sale.voided_at.is_(None)` filter branch)
+  - `multi_product_sort_eroded_first` — 2 products both with margin erosion → biggest erosion listed first (locks the `sort(key=lambda d: d.margin_change_gs)` branch)
+- **`app/services/import_xlsx.py:from_workbook`** — the public entry point of import_xlsx (a.k.a. "import_catalog" in the S1 audit brief; the file has no top-level function literally named that) — 6 scenarios:
+  - `empty_workbook` — only header rows → result counts 0/0/0/0, no warnings
+  - `full_happy_path` — 3 ing + 2 recetas + 1 product + 3 lineas → counts match, no warnings; exercises `_import_full` Ingredient/Recipe/RecipeLine/Product additive write branches AND the `recipes_index` / `ingredients_index` name-resolution branches
+  - `missing_name_row_skipped` — empty `name` cell → row skipped with warning (locks the `if not name: warnings.append(...); continue` branch in every sheet loop)
+  - `money_string_coerced_to_int` — `"Gs. 5.000"` string → int 5000; also asserts `isinstance(ing.purchase_price_gs, int)` to lock AGENTS.md rule 2 (the only path that converts `Decimal → int` is `to_int_gs`, and money columns are `int`, not `Decimal`)
+  - `warnings_on_bad_rows` — 2 name-less rows → `result.warnings` has ≥ 2 entries AND result is still a valid `ImportResult` (no exception)
+  - `full_mode_is_additive` — two sequential imports with distinct ingredient names → both batches present (locks the additive `session.add(ing)` contract; intentionally does NOT re-run with the same names because the schema's UNIQUE constraint would trip — that's a separate code path that doesn't currently ship in FULL mode)
+
+All 14 cases pass locally (`uv run rtk pytest tests/test_d_grade_helpers_batch5.py --no-cov`).
+
+**Why not `from_workbook` directly named `import_catalog`**: the S1 audit brief used `import_catalog` / `export_catalog` but neither file has a function with those literal names. The actual public entry points are `from_workbook` (and `from_file`, which delegates to `from_workbook` after loading a .xlsx from disk) for import_xlsx, and `to_file` / `to_bytes` for export_xlsx. `from_workbook` is the in-memory testable entry and is what `from_file` calls into — it's the function the audit was pointing at. `export_xlsx.to_file` was already covered indirectly by `tests/test_import_roundtrip.py::test_export_produces_valid_workbook` and `tests/test_excel_export_period.py` (period-filtered variants), so it's not in this batch.
+
+**Note**: `libro_ventas` (CC 21, D-grade) was covered in #174, `bank_list` + `shopping_list_index` (CC 21 each) in #178, and `_sort_value` (CC 21) in #172. This file covers the next 2 D-grade offenders from the S1 audit: `margin_drift_all` (CC 22) and `from_workbook` (the import_xlsx public entry). The remaining D-grade offenders in `import_xlsx` are `_validate_workbook` (CC 28) and `_import_patch_ingredientes` (CC 23), both already partially covered by `tests/test_excel_patch.py`; not doubled here to avoid churn.
+
 ## 2026-10-13 — test(s1-batch4): parametrize bank_list + shopping_list_index (CC 21 each, D-grade → +13 cases, 30%→33%)
 
 **Scope**: `tests/test_d_grade_helpers_parametrized.py` (new, ~550 lines).
