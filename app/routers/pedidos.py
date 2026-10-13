@@ -924,52 +924,9 @@ async def pedidos_create(
     # idempotency_key arrives, we return the previously-created pedido
     # via redirect) instead of creating a duplicate. Mirrors the
     # `sale_multi_idem` pattern from app/routers/sales.py.
-    if idempotency_key:
-        from sqlalchemy.exc import IntegrityError
-
-        from app.rms.models import AppMeta as _AppMeta
-
-        # Check for an existing reservation first (read-then-write).
-        existing = session.scalar(
-            select(_AppMeta).where(_AppMeta.key == f"pedido_idem:{idempotency_key}")
-        )
-        if existing is not None:
-            # Try to parse {pedido_id, request_id} from the cached value.
-            try:
-                cached = json.loads(existing.value or "{}")
-            except (ValueError, TypeError):
-                cached = {}
-            existing_id = cached.get("pedido_id")
-            if existing_id:
-                return RedirectResponse(url=f"/pedidos/{existing_id}", status_code=303)
-            # Cache was a placeholder ("pending") from a request that died
-            # mid-transaction. Fall through and try to reserve again.
-            session.delete(existing)
-            session.flush()
-
-        try:
-            session.add(
-                _AppMeta(
-                    key=f"pedido_idem:{idempotency_key}",
-                    value="pending",
-                    updated_at=datetime.now(timezone.utc).isoformat(),
-                )
-            )
-            session.flush()
-        except IntegrityError:
-            session.rollback()
-            # Lost the race; re-read and redirect to the winner.
-            existing = session.scalar(
-                select(_AppMeta).where(_AppMeta.key == f"pedido_idem:{idempotency_key}")
-            )
-            if existing is not None:
-                try:
-                    cached = json.loads(existing.value or "{}")
-                except (ValueError, TypeError):
-                    cached = {}
-                existing_id = cached.get("pedido_id")
-                if existing_id:
-                    return RedirectResponse(url=f"/pedidos/{existing_id}", status_code=303)
+    cached_id = _pedido_idempotency_reserve(session, idempotency_key)
+    if cached_id is not None:
+        return RedirectResponse(url=f"/pedidos/{cached_id}", status_code=303)
 
     cust_id_str = str(customer_id or "").strip()
     cust_id_int: int | None = None
@@ -981,7 +938,174 @@ async def pedidos_create(
                 status_code=400,
                 detail=f"customer_id inválido: {cust_id_str!r}",
             ) from None
-    # Build list of lines from the form
+    lines = _pedido_parse_lines(session, form)
+
+    # Parse promised_date
+    try:
+        promised = date.fromisoformat(promised_date)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=f"Fecha inválida: {promised_date!r}") from exc
+
+    # Resolve customer (optional)
+    cust_name = (customer_name or "").strip()
+    cust_phone = (customer_phone or "").strip() or None
+    cust_obj = _pedido_resolve_customer(
+        session,
+        cust_id_int,
+        cust_name=cust_name,
+        cust_phone=cust_phone,
+        invoice_ruc=invoice_ruc,
+        invoice_name=invoice_name,
+    )
+    if cust_obj is not None and not cust_name:
+        cust_name = cust_obj.name
+
+    # Normalize channel to canonical display name
+    channel_normalized = normalize_channel(channel)
+
+    # Auto-fill delivery zone from form + validate min order
+    zone_int: int | None = None
+    if delivery_zone_id:
+        try:
+            zone_int = int(delivery_zone_id)
+        except ValueError:
+            zone_int = None
+    notes = _pedido_apply_zone_min_order(session, zone_int, lines, notes)
+
+    # P3 profile batch: default facturación from the customer's profile
+    # when the operator didn't type invoice data on the order.
+    if cust_obj is not None:
+        invoice_name = (invoice_name or "").strip() or (cust_obj.invoice_name or "")
+        invoice_ruc = (invoice_ruc or "").strip() or (cust_obj.invoice_ruc or "")
+
+    pedido = Pedido(
+        customer_id=cust_obj.id if cust_obj else None,
+        customer_name=cust_name,
+        customer_phone=cust_phone or (cust_obj.phone if cust_obj else None),
+        promised_date=datetime.combine(promised, datetime.min.time()),
+        promised_time=promised_time.strip() or None,
+        channel=channel_normalized,
+        status="pending",
+        payment_intent=(payment_intent or "efectivo").strip().lower(),
+        delivery_zone_id=zone_int,
+        address_text=(address_text or "").strip() or None,
+        delivery_window_start=(delivery_window_start or "").strip() or None,
+        delivery_window_end=(delivery_window_end or "").strip() or None,
+        # Phase 13 (2026-10-01): preferred-arrival window semantics
+        delivery_preference=(delivery_preference or "asap").strip() or "asap",
+        delivery_scheduled_date=_parse_date_or_none(delivery_scheduled_date),
+        invoice_ruc=(invoice_ruc or "").strip() or None,
+        invoice_name=(invoice_name or "").strip() or None,
+        # Phase 13: FKs to chosen profile + chosen address
+        customer_invoice_profile_id=_int_or_none(customer_invoice_profile_id),
+        customer_address_id=_int_or_none(customer_address_id),
+        notes=(notes or "").strip() or None,
+        public_token=generate_public_token(),
+        # P1-2: token expires 30 days from creation. Set at insert time
+        # so the customer can always see "expires X" from the moment
+        # the pedido is created (not from when migration 067 ran).
+        public_token_expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+    )
+    session.add(pedido)
+    session.flush()  # assigns pedido.id
+
+    # Persist lines + (optionally) the address book entry
+    for ln in lines:
+        session.add(
+            PedidoLine(
+                pedido_id=pedido.id,
+                product_id=ln["product_id"],
+                qty=ln["qty"],
+                unit_price_gs=ln["unit_price_gs"],
+                fulfilled_qty=0,
+            )
+        )
+    _pedido_persist_address_book_entry(
+        session,
+        cust_obj,
+        zone_int,
+        save_address,
+        address_text=address_text,
+        address_label=address_label,
+        address_calle_principal=address_calle_principal,
+        address_calle_secundaria=address_calle_secundaria,
+        address_numero=address_numero,
+        address_edificio=address_edificio,
+        address_piso=address_piso,
+        address_unidad=address_unidad,
+        address_barrio=address_barrio,
+        address_ciudad=address_ciudad,
+        address_departamento=address_departamento,
+        address_codigo_postal=address_codigo_postal,
+        address_recipient_name=address_recipient_name,
+        address_delivery_instructions=address_delivery_instructions,
+        address_kind=address_kind,
+    )
+
+    # Timeline events, audit row, demand cache invalidation, idem stamp
+    _pedido_finalize_creation(request, session, pedido, lines, channel_normalized, idempotency_key)
+
+    return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
+
+
+def _pedido_idempotency_reserve(session: Session, key: str) -> int | None:
+    """Reserve an idempotency key. Returns an existing pedido_id if the key
+    has already been used (caller should redirect there), or None to proceed
+    with the reservation in place. Encapsulates the read-then-write race +
+    IntegrityError rollback so the orchestrator is a 1-liner."""
+
+    if not key:
+        return None
+    from sqlalchemy.exc import IntegrityError
+
+    from app.rms.models import AppMeta as _AppMeta
+
+    # Check for an existing reservation first (read-then-write).
+    existing = session.scalar(select(_AppMeta).where(_AppMeta.key == f"pedido_idem:{key}"))
+    if existing is not None:
+        try:
+            cached = json.loads(existing.value or "{}")
+        except (ValueError, TypeError):
+            cached = {}
+        cached_id = cached.get("pedido_id")
+        if cached_id:
+            return cached_id
+        # Cache was a placeholder ("pending") from a request that died
+        # mid-transaction. Fall through and try to reserve again.
+        session.delete(existing)
+        session.flush()
+
+    try:
+        session.add(
+            _AppMeta(
+                key=f"pedido_idem:{key}",
+                value="pending",
+                updated_at=datetime.now(timezone.utc).isoformat(),
+            )
+        )
+        session.flush()
+    except IntegrityError:
+        # Lost the race; re-read and return the winner's pedido_id.
+        session.rollback()
+        existing = session.scalar(select(_AppMeta).where(_AppMeta.key == f"pedido_idem:{key}"))
+        if existing is not None:
+            try:
+                cached = json.loads(existing.value or "{}")
+            except (ValueError, TypeError):
+                cached = {}
+            cached_id = cached.get("pedido_id")
+            if cached_id:
+                return cached_id
+    return None
+
+
+def _pedido_parse_lines(session: Session, form: Any) -> list[dict]:
+    """Pull repeated form fields into a list of {product_id, qty, unit_price_gs}.
+
+    Raises 400 if the form had no product_ids at all, or if every line was
+    rejected (returns the human-readable reasons in the error detail).
+    For each rejected line the user sees why via the `skipped` reasons.
+    """
     product_ids = form.getlist("line_product_id")
     qtys = form.getlist("line_qty")
     unit_prices = form.getlist("line_unit_price_gs")
@@ -989,7 +1113,7 @@ async def pedidos_create(
         raise HTTPException(status_code=400, detail="Al menos una línea es obligatoria")
 
     lines: list[dict[str, Any]] = []
-    skipped: list[str] = []  # human-readable reasons for ignored lines
+    skipped: list[str] = []
     for idx, (pid_raw, qty_raw, price_raw) in enumerate(
         zip(product_ids, qtys, unit_prices, strict=False), start=1
     ):
@@ -1036,22 +1160,24 @@ async def pedidos_create(
             if len(skipped) > 5:
                 detail += f" (y {len(skipped) - 5} más)"
         raise HTTPException(status_code=400, detail=detail)
+    return lines
 
-    # Parse promised_date
-    try:
-        promised = date.fromisoformat(promised_date)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=f"Fecha inválida: {promised_date!r}") from exc
 
-    # Resolve customer (optional)
-    cust_name = (customer_name or "").strip()
-    cust_phone = (customer_phone or "").strip() or None
-    cust_obj: Customer | None = None
+def _pedido_resolve_customer(
+    session: Session,
+    cust_id_int: int | None,
+    *,
+    cust_name: str,
+    cust_phone: str | None,
+    invoice_ruc: str,
+    invoice_name: str,
+) -> Customer | None:
+    """Look up the customer by id (or auto-create from name). Updates the
+    customer's ficha with phone/ruc/name if newer values were supplied."""
     if cust_id_int:
         cust_obj = session.get(Customer, cust_id_int)
         if cust_obj is None:
             raise HTTPException(status_code=400, detail="cliente no encontrado")
-        cust_name = cust_name or cust_obj.name
         # Keep the customer's ficha fresh: pedido form is often where the
         # operator learns the phone / RUC / razón social. Write back if the
         # form carries values (never blank out existing data).
@@ -1063,140 +1189,133 @@ async def pedidos_create(
             cust_obj.invoice_ruc = invoice_ruc  # newest wins (operator typed it)
         if invoice_name and invoice_name != (cust_obj.invoice_name or ""):
             cust_obj.invoice_name = invoice_name
+        return cust_obj
 
     # If user typed a name but didn't pick an existing customer, auto-create.
-    if cust_obj is None and cust_name:
-        existing = session.scalar(
-            select(Customer).where(func.lower(Customer.name) == cust_name.lower())
-        )
-        if existing is not None:
-            cust_obj = existing
-            if cust_phone and not (existing.phone or ""):
-                existing.phone = cust_phone
-        else:
-            cust_obj = Customer(
-                name=cust_name,
-                phone=cust_phone,
-                invoice_ruc=(invoice_ruc or "").strip() or None,
-                invoice_name=(invoice_name or "").strip() or None,
-            )
-            session.add(cust_obj)
-            session.flush()  # assigns cust_obj.id
-
-    # Normalize channel to canonical display name
-    channel_normalized = normalize_channel(channel)
-
-    # Auto-fill delivery zone from form + validate min order
-    zone_int: int | None = None
-    if delivery_zone_id:
-        try:
-            zone_int = int(delivery_zone_id)
-        except ValueError:
-            zone_int = None
-    if zone_int:
-        # Load zone to validate min order
-        from app.rms.models import DeliveryZone
-
-        zone = session.get(DeliveryZone, zone_int)
-        if zone and zone.min_order_gs > 0:
-            # Compute pedido total
-            pedido_total_gs = sum(round((ln["qty"] or 0) * (ln["price"] or 0)) for ln in lines)
-            if pedido_total_gs < zone.min_order_gs:
-                notes = (
-                    (notes or "").strip()
-                    + f" [WARN: pedido ₲{pedido_total_gs:,} < mínimo zona ₲{zone.min_order_gs:,}]"
-                ).strip()
-
-    # P3 profile batch: default facturación from the customer's profile
-    # when the operator didn't type invoice data on the order.
-    if cust_obj is not None:
-        invoice_name = (invoice_name or "").strip() or (cust_obj.invoice_name or "")
-        invoice_ruc = (invoice_ruc or "").strip() or (cust_obj.invoice_ruc or "")
-
-    pedido = Pedido(
-        customer_id=cust_obj.id if cust_obj else None,
-        customer_name=cust_name,
-        customer_phone=cust_phone or (cust_obj.phone if cust_obj else None),
-        promised_date=datetime.combine(promised, datetime.min.time()),
-        promised_time=promised_time.strip() or None,
-        channel=channel_normalized,
-        status="pending",
-        payment_intent=(payment_intent or "efectivo").strip().lower(),
-        delivery_zone_id=zone_int,
-        address_text=(address_text or "").strip() or None,
-        delivery_window_start=(delivery_window_start or "").strip() or None,
-        delivery_window_end=(delivery_window_end or "").strip() or None,
-        # Phase 13 (2026-10-01): preferred-arrival window semantics
-        delivery_preference=(delivery_preference or "asap").strip() or "asap",
-        delivery_scheduled_date=_parse_date_or_none(delivery_scheduled_date),
+    if not cust_name:
+        return None
+    existing = session.scalar(
+        select(Customer).where(func.lower(Customer.name) == cust_name.lower())
+    )
+    if existing is not None:
+        if cust_phone and not (existing.phone or ""):
+            existing.phone = cust_phone
+        return existing
+    cust_obj = Customer(
+        name=cust_name,
+        phone=cust_phone,
         invoice_ruc=(invoice_ruc or "").strip() or None,
         invoice_name=(invoice_name or "").strip() or None,
-        # Phase 13: FKs to chosen profile + chosen address
-        customer_invoice_profile_id=_int_or_none(customer_invoice_profile_id),
-        customer_address_id=_int_or_none(customer_address_id),
-        notes=(notes or "").strip() or None,
-        public_token=generate_public_token(),
-        # P1-2: token expires 30 days from creation. Set at insert time
-        # so the customer can always see "expires X" from the moment
-        # the pedido is created (not from when migration 067 ran).
-        public_token_expires_at=datetime.now(timezone.utc) + timedelta(days=30),
     )
-    session.add(pedido)
-    session.flush()  # assigns pedido.id
+    session.add(cust_obj)
+    session.flush()  # assigns cust_obj.id
+    return cust_obj
 
-    # P3: persist the address to the customer's address book (opt-in
-    # checkbox) so the next pedido to this person is one click.
-    if save_address == "1" and cust_obj and (address_text or "").strip():
-        from app.rms.models import CustomerAddress
 
-        first_for_customer = not session.scalar(
-            select(CustomerAddress.id).where(CustomerAddress.customer_id == cust_obj.id).limit(1)
+def _pedido_apply_zone_min_order(
+    session: Session, zone_int: int | None, lines: list[dict], notes: str
+) -> str:
+    """If the zone has a min-order Gs, append a [WARN: ...] to notes when
+    the pedido total is below the minimum. Returns the (possibly augmented)
+    notes. Returns the original notes when no zone / no min-order / met min.
+    """
+    if not zone_int:
+        return notes
+    from app.rms.models import DeliveryZone
+
+    zone = session.get(DeliveryZone, zone_int)
+    if not zone or zone.min_order_gs <= 0:
+        return notes
+    pedido_total_gs = sum(round((ln["qty"] or 0) * (ln["unit_price_gs"] or 0)) for ln in lines)
+    if pedido_total_gs >= zone.min_order_gs:
+        return notes
+    return (
+        (notes or "").strip()
+        + f" [WARN: pedido ₲{pedido_total_gs:,} < mínimo zona ₲{zone.min_order_gs:,}]"
+    ).strip()
+
+
+def _pedido_persist_address_book_entry(
+    session: Session,
+    cust_obj: Customer | None,
+    zone_int: int | None,
+    save_address: str,
+    *,
+    address_text: str,
+    address_label: str,
+    address_calle_principal: str,
+    address_calle_secundaria: str,
+    address_numero: str,
+    address_edificio: str,
+    address_piso: str,
+    address_unidad: str,
+    address_barrio: str,
+    address_ciudad: str,
+    address_departamento: str,
+    address_codigo_postal: str,
+    address_recipient_name: str,
+    address_delivery_instructions: str,
+    address_kind: str,
+) -> None:
+    """P3: when the operator checked the "save address" box, persist a
+    CustomerAddress entry so the next pedido to this person is one click.
+    Also stamps `preferred_zone_id` on the customer when no preference is
+    set yet. No-op when the box wasn't checked, no customer, or no address
+    text."""
+    if save_address != "1" or not cust_obj or not (address_text or "").strip():
+        return
+    from app.rms.models import CustomerAddress
+
+    first_for_customer = not session.scalar(
+        select(CustomerAddress.id).where(CustomerAddress.customer_id == cust_obj.id).limit(1)
+    )
+    # Phase 13: structured address columns from the form. Each row gets
+    # `value.strip() or None` so blank inputs map to NULL, not the empty
+    # string (which downstream formatters would render as "").
+    session.add(
+        CustomerAddress(
+            customer_id=cust_obj.id,
+            label=(address_label or "casa").strip()[:32] or "casa",
+            address_text=address_text.strip(),
+            zone_id=zone_int,
+            is_default=first_for_customer,
+            calle_principal=address_calle_principal.strip() or None,
+            calle_secundaria=address_calle_secundaria.strip() or None,
+            numero=address_numero.strip() or None,
+            edificio=address_edificio.strip() or None,
+            piso=address_piso.strip() or None,
+            unidad=address_unidad.strip() or None,
+            barrio=address_barrio.strip() or None,
+            ciudad=address_ciudad.strip() or None,
+            departamento=address_departamento.strip() or None,
+            pais="PRY",
+            codigo_postal=address_codigo_postal.strip() or None,
+            recipient_name=address_recipient_name.strip() or None,
+            delivery_instructions=address_delivery_instructions.strip() or None,
+            address_kind=(address_kind or "HOME").strip() or "HOME",
         )
-        session.add(
-            CustomerAddress(
-                customer_id=cust_obj.id,
-                label=(address_label or "casa").strip()[:32] or "casa",
-                address_text=address_text.strip(),
-                zone_id=zone_int,
-                is_default=first_for_customer,
-                # Phase 13: structured address columns from the form
-                calle_principal=address_calle_principal.strip() or None,
-                calle_secundaria=address_calle_secundaria.strip() or None,
-                numero=address_numero.strip() or None,
-                edificio=address_edificio.strip() or None,
-                piso=address_piso.strip() or None,
-                unidad=address_unidad.strip() or None,
-                barrio=address_barrio.strip() or None,
-                ciudad=address_ciudad.strip() or None,
-                departamento=address_departamento.strip() or None,
-                pais="PRY",
-                codigo_postal=address_codigo_postal.strip() or None,
-                recipient_name=address_recipient_name.strip() or None,
-                delivery_instructions=address_delivery_instructions.strip() or None,
-                address_kind=(address_kind or "HOME").strip() or "HOME",
-            )
-        )
-        # Remember the zone as the customer's preference too
-        if zone_int and not cust_obj.preferred_zone_id:
-            cust_obj.preferred_zone_id = zone_int
+    )
+    # Remember the zone as the customer's preference too
+    if zone_int and not cust_obj.preferred_zone_id:
+        cust_obj.preferred_zone_id = zone_int
 
-    for ln in lines:
-        session.add(
-            PedidoLine(
-                pedido_id=pedido.id,
-                product_id=ln["product_id"],
-                qty=ln["qty"],
-                unit_price_gs=ln["unit_price_gs"],
-                fulfilled_qty=0,
-            )
-        )
 
-    # Phase 11 — record PedidoEvent rows so the timeline surfaces this
-    # pedido's lifecycle in the detail view. We use the cheap batch-add
-    # pattern: add all events at once, then flush once.
+def _pedido_finalize_creation(
+    request: Request,
+    session: Session,
+    pedido: Pedido,
+    lines: list[dict],
+    channel: str,
+    idempotency_key: str,
+) -> None:
+    """Record timeline events, audit row, invalidate the demand cache, and
+    stamp the idempotency reservation with the new pedido_id. Commits the
+    session after the invalidation; if a key was supplied, commits again
+    after stamping it (matches the original two-commit dance)."""
     from app.services.pedido_events import PedidoEventService
 
     actor = str(current_operator(request))
+    total_gs = sum(ln["qty"] * ln["unit_price_gs"] for ln in lines)
     PedidoEventService.record(
         session,
         pedido.id,
@@ -1204,9 +1323,9 @@ async def pedidos_create(
         actor=actor,
         payload={
             "n_lines": len(lines),
-            "channel": channel_normalized,
+            "channel": channel,
             "promised_date": pedido.promised_date.isoformat(),
-            "total_gs": sum(ln["qty"] * ln["unit_price_gs"] for ln in lines),
+            "total_gs": total_gs,
         },
     )
     for ln in lines:
@@ -1230,9 +1349,9 @@ async def pedidos_create(
         target_id=str(pedido.id),
         detail={
             "n_lines": len(lines),
-            "channel": channel_normalized,
+            "channel": channel,
             "promised_date": pedido.promised_date.isoformat(),
-            "total_gs": sum(ln["qty"] * ln["unit_price_gs"] for ln in lines),
+            "total_gs": total_gs,
         },
         request=request,
     )
@@ -1274,8 +1393,6 @@ async def pedidos_create(
             )
         )
         safe_commit(session)
-
-    return RedirectResponse(url=f"/pedidos/{pedido.id}", status_code=303)
 
 
 @router.get("/export-csv")
