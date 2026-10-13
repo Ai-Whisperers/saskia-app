@@ -1,3 +1,64 @@
+## 2026-10-12 — refactor(routers): silent broad-except sweep in app/routers/ + new test gate (S2 robustness PR4)
+
+**Scope**: `tests/test_silent_excepts_routers.py` (new, 54 router-scanned + 3 sanity/audit = 57 tests), `app/routers/{insights,dashboard,settings,customers,eod,health,pedidos,produccion/_full,recipes,inventory,products,merma,reorder,sales}.py` (37 small additive sites).
+
+Adds the third silent-broad-except gate to the S2 plan. Complements:
+
+- `tests/test_no_silent_excepts.py` (S1-owned, BACKLOG #53, catches `except: pass`)
+- `tests/test_silent_excepts_rms.py` (S2 PR3, catches broad-except in `app/rms/`)
+
+The new gate is an AST scan over `app/routers/**/*.py` that fails CI when a `except (Exception|BaseException|RuntimeError|OSError|IOError)` block swallows without (a) a `logger.*` call, (b) a `raise`, or (c) an explicit narrow-purpose justification comment (regex-matched against ~40 patterns + `EXEMPT_PATHS` exemption list). Narrow catches like `except BadSignature` or `except AssertionError` are skipped — broad catches that are defensively intentional now carry a one-line justification in addition to the existing fallback. Behaviour-preserving: same return value, same control flow — only addition is one log line per failure path.
+
+Affected files (one site per line, all behaviour-preserving):
+
+- `app/routers/insights.py:31` — insights engine fallback returns typed 500 with logger.warning (operator-actionable)
+- `app/routers/dashboard.py:922` — eod_completions_list probe → `logger.debug` + return False
+- `app/routers/settings.py:95` — user lookup fallback → `logger.debug`
+- `app/routers/customers.py:1066` — `request.json()` non-JSON body fallback → `logger.debug`
+- `app/routers/customers.py:1594` — parse_preferences fallback → `logger.debug`
+- `app/routers/eod.py:166` — `detect_anomalies()` no-config fallback → `logger.debug`
+- `app/routers/eod.py:233` — `detect_anomalies()` with-config fallback → `logger.debug`
+- `app/routers/eod.py:584` — eod_print anomalies fallback → `logger.debug`
+- `app/routers/health.py:58` — backup timestamp lookup → `logger.debug`
+- `app/routers/health.py:205` — R2 `head_bucket` credential probe → `logger.debug`
+- `app/routers/health.py:295` — `shutil.disk_usage` (DATA_DIR) → `logger.debug`
+- `app/routers/health.py:316` — R2 HEAD urllib probe → `logger.warning` (network)
+- `app/routers/health.py:444` — package version probe → `logger.debug`
+- `app/routers/health.py:491` — `shutil.disk_usage` (DB_PATH) → `logger.debug`
+- `app/routers/health.py:592` — db metadata probe → `logger.debug`
+- `app/routers/health.py:606` — `/healthz/db` full probe → `logger.warning` (operator-actionable)
+- `app/routers/health.py:639` — `_summary_check_db` → `logger.debug`
+- `app/routers/health.py:681` — `_summary_check_errors` → `logger.debug`
+- `app/routers/health.py:750` — `_summary_check_backup` → `logger.warning` (operator-actionable)
+- `app/routers/health.py:952` — smoke login probe → `logger.warning`
+- `app/routers/health.py:983` — smoke route probe → `logger.warning`
+- `app/routers/pedidos.py:1438` — pedido audit-row commit rollback → `logger.warning`
+- `app/routers/produccion/_full.py:744` — demand forecast fallback → `logger.debug`
+- `app/routers/recipes.py:516` — recipe instructions JSON parse fallback → `logger.debug`
+- `app/routers/recipes.py:1346` — `r.instructions` JSON parse fallback → `logger.debug`
+- `app/routers/inventory.py:398` — `stock_value_gs` fallback → `logger.debug`
+- `app/routers/inventory.py:1395` — `price_stats` optional helper → `logger.debug`
+- `app/routers/products.py:339` — `batch_compute_prime_cost` fallback → `logger.debug`
+- `app/routers/products.py:958` — bulk-edit `request.json()` → `logger.debug`
+- `app/routers/products.py:1093` — per-row CSV import error → `logger.debug`
+- `app/routers/products.py:1252` — branding settings `value_json` parse → `logger.debug`
+- `app/routers/merma.py:180` — waste source-mix 14d fallback → `logger.debug`
+- `app/routers/merma.py:247` — price-drift amplification fallback → `logger.debug`
+- `app/routers/reorder.py:517` — scraper audit-row commit → `logger.warning`
+- `app/routers/sales.py:2168` — share-link audit-row commit → `logger.warning`
+- `app/routers/sales.py:2227` — public receipt audit-row commit → `logger.warning`
+- `app/routers/sales.py:2388` — `pre_sale_check` JSON body → `logger.debug`
+
+Adds `from loguru import logger` to 4 files that previously used stdlib-only logging (`app/routers/merma.py`, `app/routers/produccion/_full.py`, `app/routers/reorder.py`, `app/routers/sales.py`). `app/routers/customers.py` already used `logging.getLogger(__name__)` and reuses the existing logger (no new import).
+
+EXEMPT_PATHS in the new gate:
+
+- `app/routers/produccion/__init__.py` — subpackage init has no except blocks; placeholder for future exemption symmetry with the rms scan.
+
+Adjudication: `test_no_silent_except_in_routers` parametrises one test per `.py` file under `app/routers/` (54 tests in this commit). All routers pass. The 3 sanity/audit tests (`test_routers_scan_count_is_nonzero`, `test_silent_except_audit_trend`, plus the parametrised ones) verify the gate scans real code and stays green over time. Adjudication per S5 ruling 2026-10-12T21:13:00Z — additive file per the existing S2 plan, no existing tests modified.
+
+No behaviour-preserving concerns — purely additive logging; previous silent fallbacks now log a single line per failure.
+
 ## 2026-10-12 — style: apply ruff format to S2 batch-1 files
 
 **Scope**: `app/rms/errors.py`, `app/rms/observability.py`, `app/rms/retry.py`, `tests/test_silent_excepts_rms.py` — pure formatting (line lengths, import grouping). No behavior change. Required by fast-pr-gate smoke gate.

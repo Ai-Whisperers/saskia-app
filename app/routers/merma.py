@@ -10,6 +10,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -177,6 +178,9 @@ def merma_list(
                 "cost_gs": int(cost),
             }
     except Exception:
+        # Waste log source-mix fallback — empty dict lets the trend panel
+        # render a "no events in window" hint rather than crashing.
+        logger.debug("waste source-mix 14d fallback", exc_info=True)
         source_mix_14d = {}
 
     # T-merma-trend (6d44dfb7 spec): "Merma amplificada" — ingredients whose
@@ -241,6 +245,9 @@ def merma_list(
                     )
         amplified_rows.sort(key=lambda r: r["price_pct"], reverse=True)
     except Exception:
+        # Price-drift fallback — empty list keeps the merma-trend table
+        # rendering without the "amplified" column populated.
+        logger.debug("price-drift amplification fallback", exc_info=True)
         amplified_rows = []
 
     # Build preset query strings

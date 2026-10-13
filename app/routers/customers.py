@@ -1064,6 +1064,9 @@ async def log_suggestion_applied(
             try:
                 payload = await request.json()
             except Exception:
+                # Defensive — non-JSON POSTs (e.g. button-click without body)
+                # fall through with empty payload so the route still completes.
+                logger.debug("customer api: request.json() fallback", exc_info=True)
                 payload = {}
             kind = str((payload or {}).get("kind") or "unknown").strip() or "unknown"
             pct = (payload or {}).get("discount_pct")
@@ -1589,6 +1592,9 @@ def cliente_update(
     try:
         prefs = parse_preferences(dietary_prefs_payload)
     except Exception:
+        # Defensive — malformed dietary preferences from older clients fall
+        # back to empty list; the canonical_restrictions still apply.
+        logger.debug("parse_preferences fallback", exc_info=True)
         prefs = []
     customer.dietary_preferences = format_preferences(prefs) if prefs else None
     customer.dietary_confirm_always = dietary_confirm_always == "1"

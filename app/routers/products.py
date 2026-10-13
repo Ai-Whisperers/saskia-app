@@ -337,6 +337,9 @@ def _decorate_products_with_costs(session: Session, products: list) -> list[dict
     try:
         prime_batch = batch_compute_prime_cost(session, products)
     except Exception:
+        # Prime cost batch fallback — the per-product compute path below
+        # will fill in costs individually if the batch helper raises.
+        logger.debug("batch_compute_prime_cost fallback", exc_info=True)
         prime_batch = {}
 
     decorated = []
@@ -953,6 +956,9 @@ async def product_bulk_edit(
     try:
         body = await request.json()
     except Exception:
+        # Defensive — non-JSON POSTs get a typed 400 so the bulk-edit
+        # client surfaces the error rather than silently dropping edits.
+        logger.debug("product bulk_edit: request.json() fallback", exc_info=True)
         return JSONResponse(status_code=400, content={"error": "JSON body required"})
 
     product_ids: list[int] = body.get("product_ids", [])
@@ -1085,6 +1091,9 @@ async def products_import_csv(
                 created += 1
             session.commit()
         except Exception as e:
+            # Per-row CSV import: rollback this row, record the error, keep
+            # importing the rest. Operator sees errors[] on the next page.
+            logger.debug("product import row {} failed: {}", row_num, e, exc_info=True)
             session.rollback()
             errors.append({"row": row_num, "error": str(e)})
 
@@ -1241,6 +1250,9 @@ def _public_branding(session: Session) -> dict:
                 str(val).strip() if not isinstance(val, dict) else str(val.get("name", "")).strip()
             )
         except Exception:
+            # Defensive — settings row value_json may be malformed on older
+            # deploys; fall through to env-var-derived name.
+            logger.debug("branding settings value_json parse fallback", exc_info=True)
             kv_name = ""
 
     name = kv_name or business or "Sazon"
