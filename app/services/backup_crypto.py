@@ -77,6 +77,8 @@ from typing import Final
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
+from app.retry import retry_transient
+
 # Wire-format constants. Don't change HEADER_VERSION without
 # bumping both the format AND the UnsupportedVersionError message
 # below — restore code on older versions will refuse to read
@@ -242,16 +244,33 @@ def encrypt_backup(plaintext: bytes, dni: str) -> bytes:
     Returns:
         Encrypted bytes in the wire format described in the
         module docstring.
+
+    The body is wrapped in ``retry_transient`` (S2 robustness PR6).
+    Today the inner operations are pure stdlib + cryptography, but
+    the wrap provides the seam for any future DB-backed step (a
+    salt cache, a key-derivation counter, etc.) without changing
+    the public contract. ``attempts=3`` honors the S2 default; the
+    classifier recognizes ``sqlite3.OperationalError("locked" |
+    "busy" | "deadlock")`` as transient, so a contended backup
+    write gets retried.
     """
-    salt = secrets.token_bytes(SALT_SIZE)
-    nonce = secrets.token_bytes(NONCE_SIZE)
-    key = derive_key(dni, salt)
 
-    aesgcm = AESGCM(key)
-    # AESGCM.encrypt appends the 16-byte tag to the ciphertext.
-    ciphertext_with_tag = aesgcm.encrypt(nonce, plaintext, associated_data=None)
+    def _do() -> bytes:
+        salt = secrets.token_bytes(SALT_SIZE)
+        nonce = secrets.token_bytes(NONCE_SIZE)
+        key = derive_key(dni, salt)
 
-    return HEADER_MAGIC + bytes([HEADER_VERSION]) + salt + nonce + ciphertext_with_tag
+        aesgcm = AESGCM(key)
+        # AESGCM.encrypt appends the 16-byte tag to the ciphertext.
+        ciphertext_with_tag = aesgcm.encrypt(nonce, plaintext, associated_data=None)
+
+        return HEADER_MAGIC + bytes([HEADER_VERSION]) + salt + nonce + ciphertext_with_tag
+
+    return retry_transient(
+        _do,
+        attempts=3,
+        op_name="backup_crypto.encrypt_backup",
+    )
 
 
 def decrypt_backup(blob: bytes, dni: str) -> bytes:
@@ -308,10 +327,24 @@ def decrypt_backup(blob: bytes, dni: str) -> bytes:
     nonce = blob[9 + SALT_SIZE : HEADER_SIZE]
     ciphertext_with_tag = blob[HEADER_SIZE:]
 
-    key = derive_key(dni, salt)
-    aesgcm = AESGCM(key)
-    try:
+    # AESGCM decryption is wrapped in retry_transient (S2 robustness
+    # PR6). The crypto primitives don't touch a DB today, but a future
+    # change that consults a key cache or a metadata table inherits
+    # the retry behavior without a public API change. The Integrity
+    # / format errors above are NOT retried -- they re-raise from the
+    # validation block, never reaching the inner helper.
+
+    def _do() -> bytes:
+        key = derive_key(dni, salt)
+        aesgcm = AESGCM(key)
         return aesgcm.decrypt(nonce, ciphertext_with_tag, associated_data=None)
+
+    try:
+        return retry_transient(
+            _do,
+            attempts=3,
+            op_name="backup_crypto.decrypt_backup",
+        )
     except Exception as exc:
         # AESGCM raises cryptography.exceptions.InvalidTag for tag
         # mismatch. We don't care which specific exception — the
