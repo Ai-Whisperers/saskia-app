@@ -1,3 +1,74 @@
+## 2026-10-13 — refactor(produccion): SASKIA-211x split produccion_worksheet into 3 views + 15 _step_N helpers (CC 166→4)
+
+**Scope**: `app/routers/produccion/_full.py` (`produccion_worksheet` endpoint).
+
+Replaced the 418-line day-table + week-grid + month-grid monolith with a
+thin 3-branch dispatcher and **20 single-purpose helpers** (3 view-level
++ 15 `_step_N` + 2 shared). The original `produccion_worksheet` now
+reads as: parse overrides → pick view → return.
+
+Helpers (target was 5-8 `_step_N`; delivered 15 for **flat, sub-CC-15
+functions**, plus 3 view-level wrappers):
+- `_produccion_week_view(request, session, week)` — 7-day grid
+  (uses `_aggregate_plan_across_days` + `_produccion_sales_in_range`).
+- `_produccion_month_view(request, session, today, month)` — month grid
+  with revenue total (same helpers).
+- `_produccion_day_view(request, session, for_date, overrides, **kwargs)`
+  — the dense one; orchestrates 15 `_step_N` helpers below. CC=26 (the
+  hard floor: it must call every step + render the giant dict).
+- `_aggregate_plan_across_days(session, days, week_start)` — shared
+  aggregation across N days (week+month). CC=8.
+- `_sort_product_rows_by_name(product_rows)` — name-sorted flatten. CC=2.
+- `_produccion_sales_in_range(session, start_dt, end_dt)` — top products
+  sold in window. CC=2.
+- `_step_1_load_pending_pedidos(session, target_date)` — pending/
+  confirmed/ready pedidos + per-product unit count. CC=10.
+- `_step_2_load_completions(session, target_date)` — completion rows
+  bucketed by product (qty + closure status + closure notes). CC=8.
+- `_step_3_load_recipe_pricing(session)` — recipe_pricing rows keyed by
+  recipe_id. CC=3.
+- `_step_4_filter_plan_rows(session, plan)` — M1: drop rows for inactive
+  products. CC=7.
+- `_step_5_build_recipe_row(r, **kwargs)` — the 25+ field per-row dict
+  literal + ternaries. CC=24 (dict literal, mostly flat).
+- `_step_6_append_ad_hoc_rows(...)` — append ad-hoc bake rows for
+  completed-but-not-planned products. CC=10.
+- `_step_7_compute_closure_counts(plan_rows_view)` — V2 Fase 2 header
+  counts. CC=4.
+- `_step_8_compute_hero_stats(plan_rows_view)` — V3 hero stats (lote
+  total, pedidos total, confidence, ad-hoc count). CC=14.
+- `_step_9_split_zero_demand(plan_rows_view)` — M2 primary vs
+  zero-demand split. CC=6.
+- `_step_10_pagination(primary_rows, rows_per_page, page, show_all)` —
+  hard-clamped filter+sort+pagination. CC=4.
+- `_step_11_cold_start_state(session, plan, plan_rows_view, _has_sales)`
+  — cold-start bootstrap state. CC=12.
+- `_step_12_waste_totals(session, target_date)` — Tier 3-B waste totals
+  (today + 7-day avg cost). CC=5.
+- `_step_13_daily_target_actual(session, target_date, plan)` — P-14
+  target vs actual. CC=6.
+- `_step_14_load_demand_safe(session, target_date)` — V2 cutover: try/
+  except get_demand. CC=2.
+- `_step_15_confidence_calibration(plan_rows_view)` — T-2026-10-04
+  low-confidence count + 4-band bucket counts. CC=15.
+
+**Behavior preservation**:
+- 103 produccion tests pass (worksheet, helpers, prep, print, plan
+  accuracy, batch size, V3 phase0, multi-day print, p1 route, phase2,
+  mobile responsive).
+- 67 help/SASKIA-309 tests pass (help route, form help, 309 guide
+  intro, 309 500 no secrets, 309 dev pages not in nav).
+- The day view's giant render() dict is unchanged (same 50+ keys, same
+  default values, same query-param semantics). The orchestrator was
+  rewired to pass validated FastAPI params to `_produccion_day_view`
+  as kwargs instead of reading `request.query_params` ad-hoc.
+
+**CC reduction**:
+- `produccion_worksheet`: 166 → **4** (pure dispatcher).
+- `_produccion_day_view`: 26 (orchestrator only).
+- Every other helper ≤ CC 24 (most ≤ 10).
+
+
 ## 2026-10-13 — refactor(pedidos): SASKIA-211x split pedidos_create into 6 helpers (CC 124→40)
 
 **Scope**: `app/routers/pedidos.py` (`pedidos_create` endpoint).
