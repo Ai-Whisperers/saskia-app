@@ -375,6 +375,67 @@ def product_margin(session: Session, product_id: int) -> tuple[int | None, float
     return (margin_gs, ratio)
 
 
+def _empty_batch_recipes_result(
+    recipes: list[Recipe],
+) -> dict[int, tuple[CostResult, CostResult | None, int]]:
+    """Build the empty-result dict for the `not recipe_ids` branch.
+
+    Returns {r.id: (CostResult(empty), None, 0)} for every recipe in the input,
+    preserving the public contract of ``batch_recipes_cost`` when no recipe
+    has a usable id (all are ``None``).
+    """
+    return {
+        r.id: (CostResult(batch_cost_gs=None, missing_ingredient_names=[]), None, 0)
+        for r in recipes
+    }
+
+
+def _preload_recipe_costs(
+    session: Session,
+    recipe_ids: set[int],
+    all_lines: list[RecipeLine],
+) -> None:
+    """Pre-load Ingredients + sub-recipe Recipe + RecipeLine rows into the identity map.
+
+    Performs up to 3 SELECTs so the subsequent per-recipe walk in
+    ``recipe_batch_cost_gs`` / ``recipe_unit_cost_gs`` hits the identity map
+    instead of issuing N+1 queries. Order of branches (ingredient first,
+    sub-recipe second) is preserved from the pre-split implementation.
+    """
+    ingredient_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "ingredient"}
+    sub_recipe_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "sub_recipe"}
+    if ingredient_ids:
+        session.scalars(select(Ingredient).where(Ingredient.id.in_(ingredient_ids))).all()
+    if sub_recipe_ids:
+        sub_recipes = session.scalars(select(Recipe).where(Recipe.id.in_(sub_recipe_ids))).all()
+        new_recipe_ids = {sr.id for sr in sub_recipes}
+        if new_recipe_ids:
+            session.scalars(
+                select(RecipeLine).where(RecipeLine.recipe_id.in_(new_recipe_ids))
+            ).all()
+
+
+def _compute_recipe_costs(
+    session: Session,
+    recipes: list[Recipe],
+    line_counts: dict[int, int],
+) -> dict[int, tuple[CostResult, CostResult | None, int]]:
+    """Compute batch + unit cost + line_count for each non-None recipe.
+
+    Skips ``None`` entries (mirrors the pre-split ``if r is None: continue``
+    guard). The unit cost is only computed when batch_cost_gs is not None
+    (the same gate the pre-split inline code used).
+    """
+    out: dict[int, tuple[CostResult, CostResult | None, int]] = {}
+    for r in recipes:
+        if r is None:
+            continue
+        batch = recipe_batch_cost_gs(session, r.id)
+        unit = recipe_unit_cost_gs(session, r.id) if batch.batch_cost_gs is not None else None
+        out[r.id] = (batch, unit, line_counts.get(r.id, 0))
+    return out
+
+
 def batch_recipes_cost(
     session: Session,
     recipes: list[Recipe],
@@ -392,10 +453,7 @@ def batch_recipes_cost(
 
     recipe_ids = {r.id for r in recipes if r is not None}
     if not recipe_ids:
-        return {
-            r.id: (CostResult(batch_cost_gs=None, missing_ingredient_names=[]), None, 0)
-            for r in recipes
-        }
+        return _empty_batch_recipes_result(recipes)
 
     # Pre-load Recipe + lines + ingredients in 3 queries.
     session.scalars(select(Recipe).where(Recipe.id.in_(recipe_ids))).all()
@@ -406,20 +464,5 @@ def batch_recipes_cost(
     for ln in all_lines:
         line_counts[ln.recipe_id] = line_counts.get(ln.recipe_id, 0) + 1
 
-    ingredient_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "ingredient"}
-    sub_recipe_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "sub_recipe"}
-    if ingredient_ids:
-        session.scalars(select(Ingredient).where(Ingredient.id.in_(ingredient_ids))).all()
-    if sub_recipe_ids:
-        sub_recipes = session.scalars(select(Recipe).where(Recipe.id.in_(sub_recipe_ids))).all()
-        new_recipe_ids = {sr.id for sr in sub_recipes}
-        session.scalars(select(RecipeLine).where(RecipeLine.recipe_id.in_(new_recipe_ids))).all()
-
-    out: dict[int, tuple[CostResult, CostResult | None, int]] = {}
-    for r in recipes:
-        if r is None:
-            continue
-        batch = recipe_batch_cost_gs(session, r.id)
-        unit = recipe_unit_cost_gs(session, r.id) if batch.batch_cost_gs is not None else None
-        out[r.id] = (batch, unit, line_counts.get(r.id, 0))
-    return out
+    _preload_recipe_costs(session, recipe_ids, all_lines)
+    return _compute_recipe_costs(session, recipes, line_counts)
