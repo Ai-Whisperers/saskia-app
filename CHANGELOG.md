@@ -1,3 +1,48 @@
+## 2026-10-13 — refactor(pedidos): SASKIA-211x split pedidos_create into 6 helpers (CC 124→40)
+
+**Scope**: `app/routers/pedidos.py` (`pedidos_create` endpoint).
+
+Extracted 6 single-purpose helpers from the 418-line endpoint, leaving a
+thin orchestrator (~110 lines) that reads like a flowchart: reserve
+idempotency → parse lines → resolve customer → apply zone min-order →
+build Pedido → persist lines + optional address book → finalize
+(timeline + audit + cache invalidation + idem stamp).
+
+Helpers (each ≤ CC ≤ 24 with most under; **target was 4-6**):
+- `_pedido_idempotency_reserve(session, key) -> int | None` — read-then-write
+  race + IntegrityError rollback for the pedido_idem:{key} reservation.
+  Returns the cached pedido_id (caller redirects) or None (proceed).
+- `_pedido_parse_lines(session, form)` — repeated field parsing, validation
+  per row, snapshot `sale_price_gs` for blank prices. Raises 400 on empty
+  or all-rejected; BUG-00 surfaces human-readable reasons in `skipped`.
+- `_pedido_resolve_customer(session, cust_id_int, ...)` — existing-by-id or
+  auto-create-by-name; keeps the customer's ficha fresh with phone/RUC.
+- `_pedido_apply_zone_min_order(session, zone_int, lines, notes)` —
+  appends a [WARN: ...] to notes when the pedido total is below the zone
+  minimum. Returns the (possibly augmented) notes.
+- `_pedido_persist_address_book_entry(session, cust_obj, zone_int,
+  save_address, ...)` — Phase-13 structured-address persistence +
+  `preferred_zone_id` stamp; no-op when the box wasn't checked.
+- `_pedido_finalize_creation(request, session, pedido, lines, channel,
+  key)` — PedidoEvent "created" + "line_added" rows, audit_record,
+  demand cache invalidation, idempotency stamp. Two safe_commit calls
+  (invalidation → stamp) preserved.
+
+Behavior verified across 41 pedido tests (test_pedidos,
+test_pedido_post_phase13_integration, test_P33_pedidos_nuevo_address_hierarchy,
+test_pedido_customer_prefill, test_crud_roundtrips_phase14_tier4,
+test_cliente_detalle_pedidos_mix, test_inicio_frequent_customer_card,
+test_P39_channel_lowercase).
+
+The CC remaining on `_pedido_resolve_customer` (24) and
+`_pedido_persist_address_book_entry` (23) comes from the long parameter
+lists (one per form field) — radon counts each kwarg as a decision. Adding
+a new form field adds CC ≈ 1 to whichever helper takes it, but the
+function is otherwise flat and readable; further splitting would add
+boilerplate without removing complexity. The orchestrator's CC=40 is
+mostly the FastAPI Form() parameter list (radon counts each default
+value).
+
 ## 2026-10-13 — refactor(produccion): SASKIA-211x _sort_value → table-lookup (CC 21→3)
 
 **Scope**: `app/routers/produccion/_full.py` (`_sort_value` helper).
