@@ -36,6 +36,44 @@ The `_ROWS_VALIDATE` (15 rows) and `_ROWS_PATCH` (13 rows) lists double as the r
 
 **Verification**: `uv run rtk pytest tests/test_d_grade_helpers_batch11.py --no-cov` → 28 passed. `ruff check` + `ruff format --check`: clean.
 
+## 2026-10-13 — test(s1-batch12): parametrize fix_file + evidencia_importar (CC 30 + 28, D-grade, +19 cases)
+
+**Scope**: `tests/test_d_grade_helpers_batch12.py` (new, ~700 lines). Continues the s1 batch-3/4/5/6/7/8/9/10/11 helper-coverage sweep (#174, #178, #179, #181, #184, #186, #189, #191, #192). Picks the next 2 fresh D-grade offenders from `uv run scripts/check_complexity.py | grep '^ D cc=2[0-9]'` — `fix_file` (CC 30, D-grade, `scripts/fix_perf401.py`) and `evidencia_importar` (CC 28, D-grade, `app/routers/herebus.py`). The first is a pure file-rewriter; the second is a CSV-import POST route reachable via `/vs-mercado/evidencia/importar` (the request body is multipart form data, so we use the `client` TestClient fixture + a `session_factory` for the count assertions).
+
+The choice of `evidencia_importar` is deliberate: it has indirect coverage via `tests/test_market_intel.py` (route-level smoke for `confirmar` rejection + a happy/rejects composite), but no parametrized branch matrix. This file locks every distinct branch: confirm-rejected, no-file, plain-string-csv, missing-required-columns, unparseable-price, below-300 price, empty-fuente, duplicate (existing competitor/product/date), new row, and the mixed-counts composite.
+
+**Helpers covered**:
+
+### (1) `scripts/fix_perf401.py:fix_file` — CC 30 (radon D-grade)
+
+9 scenarios: `empty_line_nums_returns_zero`, `line_index_out_of_range_skipped`, `happy_path_single_line_rewritten`, `alt_init_no_type_annotation`, `standalone_if_keyword_in_expr_skipped`, `no_matching_for_line_skipped`, `init_line_too_far_above_skipped`, `multiple_appends_in_same_file`, `unindented_append_line_skipped`.
+
+Locks every branch of the pure Python-source rewriter: the empty `line_nums` zero-iter early return, the `if idx < 2 or idx >= len(lines): continue` out-of-range guard, the indent-match early return, the control-flow-keyword check on the multi-line append body (`if` / `while` / `for` / `return` / `continue` / `break` are skipped, with exceptions for ternaries and comprehensions), the missing `for <v> in <i>:` line above the append, the 80-line back-search cap on the init line, the single-line vs multi-line comprehension rewrite paths, the `out: list = []` and `out = []` (no type annotation) init patterns, the bottom-up reverse iteration for multiple appends in the same file, and the unindented-append early return. `import scripts.fix_perf401` requires the repo root on `sys.path` (the file is in `tests/`, not `app/`, so the relative import would otherwise fail) — added inside the test driver.
+
+### (2) `app/routers/herebus.py:evidencia_importar` — CC 28 (radon D-grade)
+
+10 scenarios: `confirmar_not_si_rejected`, `confirmar_but_no_file_rejected`, `csv_as_string_not_uploadfile_rejected`, `missing_required_columns_rejected`, `row_with_unparseable_price_skipped`, `row_with_price_below_300_skipped`, `row_with_empty_source_skipped`, `row_matches_existing_duplicate`, `row_brand_new_added`, `mixed_skip_dup_add_combined`.
+
+Locks every branch of the CSV importer: the `form.get("confirmar") != "si"` rejection, the `not raw or not getattr(raw, "filename", "")` missing-file guard, the `not isinstance(raw, UploadFile)` plain-string guard, the `required.issubset(...)` missing-column validation, the per-row `except (ValueError, TypeError)` price/date parse-failure skip, the `300 <= price <= 500_000` price-range skip, the empty-`fuente` skip, the `(comp[:120], prod[:160], as_of)` dedup-key check, the `session.add(CompetitorPriceObservation(...))` insert path, and the mixed-counts composite that exercises all four per-row branches in a single request. The `Karu / Medialuna de manteca / 2026-09-30` row is a real seed entry from `app/rms/seed/competitor_seed.py` (verified via `COMPETITOR_SEED` lookup) so the `row_matches_existing_duplicate` scenario actually hits the `if key in existing: dup += 1` branch instead of the `added += 1` branch.
+
+The `_ROWS_FIX` (9 rows) and `_ROWS_EVIDENCIA` (10 rows) lists double as the row-count doc tests (`assert len(...) == 9` + `assert len(...) == 10`) so adding/removing a row forces a CHANGELOG note — same pattern as #174, #178, #179, #181, #184, #186, #189, #191, #192.
+
+**Helpers skipped** (already covered in prior PRs or out of scope for this sweep):
+
+- `libro_ventas` — already covered in #174 (batch 3)
+- `bank_list`, `shopping_list_index` — already covered in #178 (batch 4)
+- `margin_drift_all`, `from_workbook` — already covered in #179 (batch 5)
+- `_pedido_resolve_customer`, `_pedido_persist_address_book_entry` — already covered in #181 (batch 6) [note: the original batch-12 file draft was a verbatim copy of batch-6; rewritten to test fresh helpers]
+- `_step_5_build_recipe_row`, `_restock_for_target` — already covered in #184 (batch 7)
+- `plan_production`, `forecast_restock` — already covered in #186 (batch 8)
+- `compute_plan_accuracy`, `libro_ventas (re-pick)` — already covered in #189 (batch 9)
+- `batch_compute_prime_cost`, `import_benchmarks` — already covered in #191 (batch 10)
+- `_validate_workbook`, `_import_patch_ingredientes` — already covered in #192 (batch 11)
+- `_produccion_day_view` (CC 28), `produccion_shift_execute` (CC 27), `_seed_sales_90_days_of_realistic_data` (CC 26) — out of scope for s1 (subsequent batches or sibling sessions)
+- `reclassify_sale_channels.main` (CC 22), `verify_catalog_on_vps.main` (CC 22), `check_docs_quality.main` (CC 21), `import_bank_transactions` (CC 21) — have their own dedicated test files
+
+**Verification**: `uv run rtk pytest tests/test_d_grade_helpers_batch12.py --no-cov` → 19 passed. `ruff check` + `ruff format --check`: clean.
+
 ## 2026-10-13 — test(s1-batch10): parametrize batch_compute_prime_cost + import_benchmarks (CC 28 + 26, D-grade, +15 cases)
 
 **Scope**: `tests/test_d_grade_helpers_batch10.py` (new, ~750 lines). Continues the s1 batch-3/4/5/6/7/8/9 helper-coverage sweep (#174, #178, #179, #181, #184, #186, #189). Picks the next 2 fresh D-grade offenders from `uv run scripts/check_complexity.py | awk '/ D cc=2[0-9]/'` — `batch_compute_prime_cost` (CC 28, D-grade) and `import_benchmarks` (CC 26, D-grade) — both pure SQLAlchemy / in-memory consumers (no FastAPI Request/Depends context), so they're called directly with `session_factory()` + their data inputs.
