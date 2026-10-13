@@ -1,3 +1,41 @@
+## 2026-10-13 — test(s1-batch11): parametrize _validate_workbook + _import_patch_ingredientes (CC 28 + 23, D-grade, +28 cases)
+
+**Scope**: `tests/test_d_grade_helpers_batch11.py` (new, ~825 lines). Continues the s1 batch-3/4/5/6/7/8/9/10 helper-coverage sweep (#174, #178, #179, #181, #184, #186, #189, #191). Picks the next 2 fresh D-grade offenders from `uv run scripts/check_complexity.py | grep '^ D cc=2[0-9]'` — `_validate_workbook` (CC 28, D-grade, `app/services/import_xlsx.py`) and `_import_patch_ingredientes` (CC 23, D-grade, `app/services/import_xlsx.py`). Both are in the same file and both are pure helpers (one takes an openpyxl Workbook, the other a Session + Workbook + ImportResult) — no FastAPI Request/Depends context needed.
+
+The batch-10 CHANGELOG claim of "exercised indirectly by `tests/test_excel_patch.py::test_dryrun_*`" was incorrect — `test_excel_patch.py` has no `test_dryrun_*` and no `_validate_workbook` reference. Likewise, `from_workbook(dry_run=True)` only fires from the file-path entry (`from_file`) and the existing tests use the in-memory `from_workbook` path. So `_validate_workbook` had **zero** direct coverage before this file.
+
+**Helpers covered**:
+
+### (1) `app/services/import_xlsx.py:_validate_workbook` — CC 28 (radon D-grade)
+
+15 scenarios: `empty_workbook_no_errors_no_warnings`, `ingredientes_missing_name_errors`, `ingredientes_negative_stock_errors`, `ingredientes_unparseable_price_errors`, `ingredientes_int_price_accepted`, `recetas_missing_name_errors`, `lineas_empty_recipe_name_warns`, `lineas_invalid_line_kind_errors`, `lineas_zero_qty_errors`, `productos_unparseable_price_errors`, `ventas_missing_sold_at_errors`, `ventas_future_sold_at_warns`, `ventas_missing_product_id_errors`, `ventas_zero_qty_errors`, `multi_sheet_multi_branch`.
+
+Locks every branch of the pure validator across 5 sheets (Ingredientes / Recetas / Lineas / Productos / Ventas): the missing-name → error path, the `stock_qty < 0` → error path, the `purchase_price_gs` parse_gs/to_int_gs fallback (numeric + unparseable), the Recetas name-required check, the Lineas empty `recipe_name` → warning path, the Lineas `line_kind` enum check, the Lineas `qty <= 0` → error, the Productos `sale_price_gs` parse-failure path, the Ventas `sold_at is None` → error, the Ventas future-sold_at → warning (only fires for `isinstance(sold_at, datetime)`), the Ventas `product_id` missing → error, the Ventas qty guard, and the multi-sheet composite path (Recetas + Lineas firing simultaneously). The `mode` parameter is part of the signature but unused; we pass `"FULL"` to exercise the contract.
+
+### (2) `app/services/import_xlsx.py:_import_patch_ingredientes` — CC 23 (radon D-grade)
+
+13 scenarios: `sheet_missing_returns_silently`, `row_missing_name_warns_and_skips`, `name_not_in_db_warns_and_skips`, `empty_stock_cell_not_touched`, `negative_stock_warns_and_skips_mutation`, `stock_qty_applied`, `min_stock_qty_applied`, `max_stock_qty_present_applied`, `purchase_price_applied_and_timestamp_stamped`, `purchase_price_unparseable_warns`, `lead_time_days_applied`, `notes_applied`, `full_row_all_branches`.
+
+Locks every branch of the PATCH-mode Ingredient mutator: the missing-sheet silent-return, the row-missing-name warning, the "name not in DB → no auto-create" warning, the empty-cell guard (`if stock_v not in (None, "")`), the negative-stock warning, the applied-stock / applied-min / applied-max paths, the purchase_price path with the `purchase_price_updated_at` timestamp side-effect (the only place the helper stamps it), the unparseable-price `_money_int_gs` returns-None warning path, the applied-lead-time path, the applied-notes path, and the full-row composite that exercises every mutation in one go.
+
+The `_seed_ingredients` helper is local (mirrors `tests/factories.make_ingredient` shape but doesn't need `tests/factories.make_ingredient`'s `unit="kg"` default + its auto-supplier-id lookup); imports of `app.rms.models_legacy` and `app.services.import_xlsx` are LAZY inside the test functions to avoid the `app/rms/models/__init__.py` → `models_legacy` circular import at pytest collection time (same pattern as `tests/test_d_grade_helpers_batch9.py` lines 941-943 / 1237-1239).
+
+The `_ROWS_VALIDATE` (15 rows) and `_ROWS_PATCH` (13 rows) lists double as the row-count doc tests (`assert len(...) == 15` + `assert len(...) == 13`) so adding/removing a row forces a CHANGELOG note — same pattern as #174, #178, #179, #181, #184, #186, #189, #191.
+
+**Helpers skipped** (already covered in prior PRs or out of scope for this sweep):
+
+- `libro_ventas` — already covered in #174 (batch 3)
+- `bank_list`, `shopping_list_index` — already covered in #178 (batch 4)
+- `margin_drift_all`, `from_workbook` — already covered in #179 (batch 5)
+- `_pedido_resolve_customer`, `_pedido_persist_address_book_entry` — already covered in #181 (batch 6)
+- `_step_5_build_recipe_row`, `_restock_for_target` — already covered in #184 (batch 7)
+- `plan_production`, `forecast_restock` — already covered in #186 (batch 8)
+- `compute_plan_accuracy`, `libro_ventas (re-pick)` — already covered in #189 (batch 9)
+- `batch_compute_prime_cost`, `import_benchmarks` — already covered in #191 (batch 10)
+- `evidencia_importar` (CC 28), `_produccion_day_view` (CC 28), `produccion_shift_execute` (CC 27), `_seed_sales_90_days_of_realistic_data` (CC 26), `import_bank_transactions` (CC 21), `produccion_print` (CC 22), `reclassify_sale_channels.main` (CC 22) — out of scope for s1 (subsequent batches or sibling sessions)
+
+**Verification**: `uv run rtk pytest tests/test_d_grade_helpers_batch11.py --no-cov` → 28 passed. `ruff check` + `ruff format --check`: clean.
+
 ## 2026-10-13 — test(s1-batch10): parametrize batch_compute_prime_cost + import_benchmarks (CC 28 + 26, D-grade, +15 cases)
 
 **Scope**: `tests/test_d_grade_helpers_batch10.py` (new, ~750 lines). Continues the s1 batch-3/4/5/6/7/8/9 helper-coverage sweep (#174, #178, #179, #181, #184, #186, #189). Picks the next 2 fresh D-grade offenders from `uv run scripts/check_complexity.py | awk '/ D cc=2[0-9]/'` — `batch_compute_prime_cost` (CC 28, D-grade) and `import_benchmarks` (CC 26, D-grade) — both pure SQLAlchemy / in-memory consumers (no FastAPI Request/Depends context), so they're called directly with `session_factory()` + their data inputs.
@@ -31,8 +69,8 @@ The `_ROWS` (8 rows) and `_ROWS_BENCH` (7 rows) lists double as the row-count do
 - `_step_5_build_recipe_row`, `_restock_for_target` — already covered in #184 (batch 7)
 - `plan_production`, `forecast_restock` — already covered in #186 (batch 8)
 - `compute_plan_accuracy`, `libro_ventas (re-pick)` — already covered in #189 (batch 9)
-- `_validate_workbook` (CC 28) — exercised indirectly by `tests/test_excel_patch.py::test_dryrun_*`
-- `_import_patch_ingredientes` (CC 23) — covered by `tests/test_excel_patch.py::test_patch_ingredientes_*`
+- `_validate_workbook` (CC 28) — covered by `tests/test_d_grade_helpers_batch11.py` (s1 batch 11)
+- `_import_patch_ingredientes` (CC 23) — covered by `tests/test_d_grade_helpers_batch11.py` (s1 batch 11)
 - `verify_catalog_on_vps.py main` (CC 22) — covered by `tests/test_verify_catalog_on_vps.py`
 - `apply_sale` (CC 25, D → B per SASKIA-211aa) — exercised by 28+ test files via the full sale-creation path
 - remaining D-grade offenders (evidencia_importar, _produccion_day_view, produccion_shift_execute, _seed_sales_90_days_of_realistic_data, import_bank_transactions, produccion_print, reclassify) — out of scope for s1 (subsequent batches or sibling sessions)
