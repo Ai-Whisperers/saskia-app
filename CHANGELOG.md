@@ -1,3 +1,47 @@
+## 2026-10-13 — test(s1-batch8): parametrize plan_production + forecast_restock (CC 28 + 26, D-grade, +17 cases)
+
+**Scope**: `tests/test_d_grade_helpers_batch8.py` (new, ~970 lines). Continues the s1-batch3/4/5/6/7 pattern of locking D-grade branch matrices with parametrized rows.
+
+Drives two D-grade helpers through `@pytest.mark.parametrize("row", _ROWS_*, ids=lambda r: r["spec"].id)`. Both are public entry points to the recipes / production planning stack with no parametrized branch matrix before this file.
+
+- **`app/rms/production.py:plan_production`** — CC 28 (radon D-grade) — 9 scenarios:
+  - `empty_db_returns_empty_plan` — zero products → empty plan, zero notes (locks the `if not products: return empty` early exit; same row in `tests/test_production.py::test_plan_production_empty_db`)
+  - `product_without_recipe` — `Product.recipe_id IS NULL` → row included but no ProductionLine (the `if prod is None or prod.recipe_id is None: continue` skip in the recipe-expansion loop)
+  - `recipe_with_null_yield` — `Recipe.yield_qty IS NULL` → recipe expansion skipped (the `recipe.yield_qty is None or <= 0: continue` branch)
+  - `seasonal_multiplier_none_auto_calendar` — `seasonal_multiplier=None` → helper imports `demand_multiplier` from `app/rms.workflow` (different from passing 1.0 explicitly; locks the `if seasonal_multiplier is None: ...` calendar-lookup branch)
+  - `manual_forecast_takes_precedence` — `manual_forecast={pid: 7.5}` → source='manual', confidence=100, qty=7.5 verbatim (the precedence chain's first rung; bypasses the ceiling-rounding rule via `source not in ('manual','override','template')` guard)
+  - `override_beats_template` — both per-date override AND weekly template row for the same product → override wins (locks the precedence chain: manual → override → template → auto)
+  - `weekly_template_wins_over_auto` — template fills when no override/sales exist (the 3rd rung of the precedence chain)
+  - `hidden_product_no_auto_forecast` — `Product.is_available=False` → qty=0, source='oculto' (PRO-11); plan.rows is empty because the row-append branch is gated by `if qty > 0:` (locks both the `not prod.is_available` branch and the post-qty gate)
+  - `seasonal_multiplier_adds_note` — `seasonal_multiplier=2.5` → plan.notes contains "Multiplicador estacional: 2.5x" (the `if seasonal_multiplier > 1.0: notes.append` branch)
+
+- **`app/rms/restock_forecast.py:forecast_restock`** — CC 26 (radon D-grade) — 8 scenarios:
+  - `unknown_ingredient_raises` — `ingredient_id=99_999` → `ValueError("Ingredient 99_999 not found")` (locks the head-of-function `if ing is None: raise` guard)
+  - `zero_history_no_stockout_no_recommendation` — no StockMovement rows → p50_date and p95_date both None, recommended=0, confidence='low' (locks the `if p95_week_total > 0: ... else: ...` else branch)
+  - `high_stock_no_stockout_in_horizon` — 10000 stock + 5kg/day consumption → cumulative_p95 never reaches stock within 60d → p95_date is None (locks the stockout walk-forward negative branch)
+  - `low_observed_days_confidence_low` — 3 distinct sale days in 56d window → `observed_days=3` → confidence='low' (locks the `elif observed_days >= 10` skip branch)
+  - `medium_observed_days_confidence_medium` — 12 distinct days → confidence='medium' (locks the `observed_days >= 10` branch)
+  - `high_observed_days_confidence_high` — 30 distinct days → confidence='high' (locks the `observed_days >= 28` branch)
+  - `null_purchase_price_cost_estimate_none` — `Ingredient.purchase_price_gs IS NULL` → `cost_estimate` is None (locks the `cost_estimate = round(...) if unit_price else None` else branch)
+  - `p50_path_runs_out` — modest stock (5kg) + heavy consumption (3kg/day) → p50_date is set (locks the expected-path stockout walk-forward's `if p50_date is None and remaining > 0 and lam > 0` branch)
+
+**Why drive them directly (not through the route)**: both are public functions but invoked from high-level pages that add their own branches (URL parsing, CSRF, template render, ad-hoc query). Calling them in isolation locks the helper's branches without route noise, exercises real SQLAlchemy state transitions (commit, flush, query), and keeps each row minimal — one scenario per branch outcome.
+
+The existing test files (`tests/test_production.py` for plan_production with 9 tests, `tests/test_restock_forecast.py` with 30 tests + `tests/test_SASKIA-208_restock_forecast.py` with 10 tests for forecast_restock) cover end-to-end flows. This file is ADDITIVE — it locks the helper-level branch matrix those flows pass through with one row per branch outcome (no existing tests modified).
+
+**Excluded D-grade helpers (covered elsewhere)**:
+
+- libro_ventas (CC 21) — PR #174
+- bank_list / shopping_list_index (CC 21) — PR #178
+- margin_drift_all / from_workbook (CC 22) — PR #179
+- _pedido_resolve_customer / _pedido_persist_address_book_entry (CC 24 + 23) — PR #181
+- _step_5_build_recipe_row / _restock_for_target (CC 24 + 29) — PR #184
+- _produccion_day_view (CC 28) — S3 split territory; it's a 200+ line orchestrator that routes through the per-step helpers batch7 already covered (not a parametrizable leaf)
+- produccion_print (CC 22) — 9 route-level tests in `tests/test_produccion_print.py`; pure data-shaping, not the kind of branch matrix that benefits from row parametrization
+- recipe.yield_qty=0 branch of plan_production — the DB CHECK constraint `recipe.yield_qty must be > 0` makes this branch unreachable from real data; skipped
+
+Adding a new scenario = one new dict entry in `_ROWS_PLAN` or `_ROWS_FORECAST`, no new function.
+
 ## 2026-10-13 — test(s1-batch7): parametrize _step_5_build_recipe_row + _restock_for_target (CC 24 + 29, D-grade → +15 cases)
 
 **Scope**: `tests/test_d_grade_helpers_batch7.py` (new, ~1300 lines). Continues the s1-batch3/4/5/6 pattern of locking D-grade branch matrices with parametrized rows.
