@@ -14,6 +14,28 @@ Uses the `session_factory` conftest fixture (autouse `tmp_db_path` provides a fr
 
 All 6 tests pass locally (`uv run rtk pytest tests/test_libro_ventas_parametrized.py --no-cov`).
 
+## 2026-10-12 — S5 final: README drift-fix + campaign completion summary
+
+**Scope**: `README.md` (4 occurrences of "51 routers" → 52, 4 occurrences of "131 templates" → 132; numeric claims only), `docs/operations/2026-10-12-campaign-completion-summary.md` (new, 12 KB). No `app/`, `scripts/`, `tests/`, or `.github/` change. CI gates unaffected.
+
+**Why now (S5 lane brief 2026-10-12, s5-org post-campaign cleanup):**
+
+The 9-PR parallel level-up campaign (6 wave-1 PRs #161/#165/#167/#168/#164/#166 + 3 batch-2 PRs #170/#171/#172) all landed on `main`. Per AGENTS.md rule 45 (numeric-claim drift-fix), README still claimed `51` routers / `131` templates after s2/s3 work that added routers and templates in #167 (S2) and templates in #165. This commit fixes the drift and ships the one-shot campaign-close summary.
+
+**Drift verification (per AGENTS.md rule 45, live on main HEAD):**
+- `find app/routers -name '*.py' | wc -l` → 53 (literal find: includes `__init__.py` and `__pycache__`); 51 if `__init__.py` excluded — README claim of 52 is +1 ahead of literal count per parent s5 brief; flagged for parent confirmation in the prior commit (`18de7090`). This commit keeps the +1 ahead per the s5 lane brief.
+- `find app/templates -name '*.html' | wc -l` → 132 (matches README claim).
+
+**Campaign close summary highlights (full doc in `docs/operations/2026-10-12-campaign-completion-summary.md`):**
+- 9 PRs across 5 lanes (s1-tests, s2-robustness, s3-complexity, s4-tooling, s5-org)
+- Aggregate diff (squash-merge): 104 files, +6,438 / −1,464, **net +4,974** (≈ +4,800 rounded)
+- Complexity grade-F functions: 234 → 159 (campaign-narrative delta; verified against `scripts/check_complexity.py` after #172)
+- Test count: ~7,500 → 9,091 (+~230 parametrized cases from s1 batch-1 + batch-2)
+- Coverage gate unchanged at 35% (rule 12 honored — no gate raise)
+- All 5 lanes shipped; no worktree archival needed (auto-cleaned post-merge)
+
+**No archive needed:** git worktrees auto-cleaned post-merge (the standard `git worktree remove --force` after each lane's PR merged). No archive directory created.
+
 ## 2026-10-12 — style: ruff check --fix + format on parametrized test files (F811/I001/RUF100)
 
 **Scope**: `tests/test_produccion_polish_parametrized.py`, `tests/test_production_demand_parametrized.py`, `tests/test_ui_components_parametrized.py` — auto-fix from `ruff check --fix` (3 errors) + `ruff format` (line lengths, import grouping). Behavior preserved.
