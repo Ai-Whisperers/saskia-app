@@ -106,6 +106,248 @@ def _decorate(
     }
 
 
+def _safe_int(raw: str) -> int | None:
+    """Parse a string as int, returning None on ValueError/TypeError or empty.
+
+    Used by /recetas ingredient-id parsers to skip-and-continue when a URL
+    param contains a non-integer or is blank. Strips whitespace before
+    parsing.
+    """
+    if not raw or not raw.strip():
+        return None
+    try:
+        return int(raw.strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def _append_unique_int(out: list[int], val: int | None) -> None:
+    """Append `val` to `out` if it's not None and not already present.
+
+    First-seen wins (matches the pre-refactor dedup semantics).
+    """
+    if val is not None and val not in out:
+        out.append(val)
+
+
+def _parse_csv_int_list(csv_str: str | None) -> list[int]:
+    """Parse a comma-separated string into a list of ints, dropping blanks/bad.
+
+    Skips empty segments silently (no log line) and silently drops any
+    segment that fails to parse as int. Matches the original
+    `ingredient_ids` parser's behavior on the second/third sources.
+    """
+    if not csv_str or not csv_str.strip():
+        return []
+    out: list[int] = []
+    for raw in csv_str.split(","):
+        val = _safe_int(raw)
+        if val is not None:
+            out.append(val)
+    return out
+
+
+def _parse_legacy_ingredient_id(ingredient_id: str | None) -> int | None:
+    """Parse the legacy single-id ?ingredient_id= param.
+
+    Returns the parsed int, or None for empty/whitespace input.
+
+    On bad input (non-empty + non-int), logs a debug line exactly once
+    (matches the pre-refactor behavior; the multi-id paths did NOT log).
+    """
+    if not ingredient_id or not ingredient_id.strip():
+        return None
+    val = _safe_int(ingredient_id)
+    if val is None:
+        logger.debug("recipes filter: bad ingredient_id: {}", ingredient_id)
+    return val
+
+
+def _parse_recipe_ingredient_ids(
+    ingredient_id: str, ingredient_ids: str, request: Request
+) -> list[int]:
+    """Coerce legacy + multi + repeated ?ingredient_multi= params into one int list.
+
+    Strips whitespace, ignores empties, validates as int (skip-and-continue on
+    bad values), dedupes. Preserves first-seen order.
+
+    Behavior CHARACTER-FOR-CHARACTER identical to the pre-refactor version:
+    - legacy `ingredient_id` is parsed first
+    - then `ingredient_ids` (comma-split)
+    - then each repeated `ingredient_multi=N` query param
+    - dedup is by first-seen order
+    - bad values are silently skipped (the legacy single-id path logs
+      a debug line; the other two paths log nothing - matches original)
+    """
+    out: list[int] = []
+    _append_unique_int(out, _parse_legacy_ingredient_id(ingredient_id))
+    for v in _parse_csv_int_list(ingredient_ids):
+        _append_unique_int(out, v)
+    # P3 UX batch: multi-select popover posts repeated ?ingredient_multi=N
+    # params - merge into the same AND-semantics id set.
+    for raw in request.query_params.getlist("ingredient_multi"):
+        _append_unique_int(out, _safe_int(raw))
+    return out
+
+
+def _parse_recipe_filter_lists(
+    request: Request, familia: str, dificultad: str, dieteticas: str
+) -> tuple[list[str], list[str], list[str]]:
+    """Parse q-auxiliary filter lists (familia, dificultad, dieteticas).
+
+    familia + dieteticas: comma-separated. dificultad: accepts BOTH
+    repeated ?dificultad=1&dificultad=3 and ?dificultad=1,3.
+    """
+    familias_sel = [x.strip() for x in familia.split(",") if x.strip()]
+    # Accept both ?dificultad=1&dificultad=3 (repeated) and ?dificultad=1,3
+    dif_sel = [
+        d.strip()
+        for d in request.query_params.getlist("dificultad")
+        for d in d.split(",")
+        if d.strip()
+    ]
+    diet_sel = [x.strip() for x in dieteticas.split(",") if x.strip()]
+    return familias_sel, dif_sel, diet_sel
+
+
+def _apply_recipes_search_filters(
+    stmt,
+    q: str,
+    familias_sel: list[str],
+    dif_sel: list[str],
+    diet_sel: list[str],
+    ing_id_ints: list[int],
+):
+    """Apply ALL /recetas search filters to a SQLAlchemy Select in canonical order.
+
+    Used for BOTH the count statement (`select(func.count(Recipe.id))`) and
+    the data statement (`select(Recipe)`), so pagination and the visible
+    rows always see the same WHERE clauses.
+
+    Order (matches the pre-refactor sequence exactly):
+      1. q            - name ILIKE
+      2. familias_sel - family OR menu_tags LIKE
+      3. dif_sel      - difficulty IN (skip-and-continue on bad int)
+      4. diet_sel     - dietary_tags LIKE (one per tag)
+      5. ing_id_ints  - AND semantics via match subquery
+    """
+    from sqlalchemy import func as _func
+    from sqlalchemy import or_ as _or
+
+    if q:
+        stmt = stmt.where(Recipe.name.ilike(f"%{q}%"))
+    if familias_sel:
+        # UI-V2: match legacy family OR the multi-select menu_tags column.
+        stmt = stmt.where(
+            _or(
+                Recipe.family.in_(familias_sel),
+                *[Recipe.menu_tags.ilike(f"%{tag}%") for tag in familias_sel],
+            )
+        )
+    if dif_sel:
+        try:
+            stmt = stmt.where(Recipe.difficulty.in_([int(d) for d in dif_sel]))
+        except ValueError as exc:
+            # Bad difficulty query param - just don't filter.
+            logger.debug("recipes difficulty filter dropped: {}", exc)
+    if diet_sel:
+        for tag in diet_sel:
+            stmt = stmt.where(Recipe.dietary_tags.ilike(f"%{tag}%"))
+    # AND semantics: recipe must use ALL of these ingredients.
+    # Subquery: pick recipe_ids that have N distinct line_ref_id matches.
+    if ing_id_ints:
+        match_subq = (
+            select(RecipeLine.recipe_id)
+            .where(
+                RecipeLine.line_kind == "ingredient",
+                RecipeLine.line_ref_id.in_(ing_id_ints),
+            )
+            .group_by(RecipeLine.recipe_id)
+            .having(_func.count(_func.distinct(RecipeLine.line_ref_id)) == len(ing_id_ints))
+            .subquery()
+        )
+        stmt = stmt.where(Recipe.id.in_(select(match_subq.c.recipe_id)))
+    return stmt
+
+
+def _apply_recipes_sql_sort(stmt, sort: str, dir: str):
+    """Apply the SQL ORDER BY for /recetas.
+
+    Only the columns where a SQL ORDER BY is meaningful get a real
+    expression; the rest fall back to Recipe.id so the SELECT stays
+    deterministic for pagination. The in-memory re-sort happens after
+    decoration (see `_apply_recipes_in_memory_sort`).
+    """
+    sort_col = {
+        "name": Recipe.name,
+        "yield_qty": Recipe.yield_qty,
+        "batch_cost_gs": Recipe.id,  # Will override after cost calc
+    }.get(sort, Recipe.name)
+    if dir == "desc":
+        return stmt.order_by(sort_col.desc())
+    return stmt.order_by(sort_col.asc())
+
+
+def _apply_recipes_in_memory_sort(decorated: list[dict], sort: str, dir: str) -> None:
+    """P3 UX batch: re-sort the current page in-memory by computed values.
+
+    Costs, difficulty, prep/cook are computed by `_decorate` and aren't
+    plain SQL columns, so the SQL ORDER BY can't handle them. This final
+    pass re-orders the visible rows by the chosen key.
+    """
+    sort_keys = {
+        "name": lambda x: (x["name"] or "").lower(),
+        "yield_qty": lambda x: x["yield_qty"] or 0,
+        "batch_cost_gs": lambda x: x["batch_cost_gs"] or 0,
+        "unit_cost_gs": lambda x: x["unit_cost_gs"] or 0,
+        "prep_minutes": lambda x: x["prep_minutes"] or 0,
+        "cook_minutes": lambda x: x["cook_minutes"] or 0,
+        "difficulty": lambda x: x["difficulty"] or 0,
+        "line_count": lambda x: x["line_count"] or 0,
+    }
+    if sort in sort_keys:
+        decorated.sort(key=sort_keys[sort], reverse=(dir == "desc"))
+
+
+def _list_all_recipe_families(session: Session) -> list[str]:
+    """SASKIA-211: source families from BOTH Recipe.family AND menu_tags.
+
+    Many recipes now have menu_tags set but family=None, so the dropdown
+    would render empty if we only queried the legacy column. Returns a
+    sorted, deduplicated, non-empty list.
+    """
+    legacy_families = [
+        f
+        for (f,) in session.execute(
+            select(Recipe.family).where(Recipe.family.is_not(None)).distinct()
+        )
+        if f
+    ]
+    menu_tag_families = [
+        tag.strip()
+        for (mt,) in session.execute(
+            select(Recipe.menu_tags).where(Recipe.menu_tags.is_not(None)).distinct()
+        )
+        if mt
+        for tag in mt.split(",")
+        if tag.strip()
+    ]
+    return sorted({f for f in legacy_families + menu_tag_families if f})
+
+
+def _list_all_recipe_tags(session: Session) -> list[str]:
+    """All recipe-kind tags via the canonical tagging helper.
+
+    Wrapped so the orchestrator doesn't need to know the helper's
+    import path (kept here for the SASKIA-211 sense-dedup move).
+    """
+    from app.rms.tagging.ensure import (
+        list_tags_for_kind,  # canonical home (post-sense-dedup, 2026-10-09)
+    )
+
+    return [t.name for t in list_tags_for_kind(session, "recipe")]
+
+
 @router.get("", response_class=HTMLResponse)
 async def recipes_list(
     request: Request,
@@ -133,152 +375,36 @@ async def recipes_list(
 ) -> HTMLResponse:
     """List recipes with batch + unit cost, search, filter by ingredient, and column sort.
 
+    Orchestrator (SASKIA-211x): thin coordinator that delegates filter
+    parsing, filter application (count + data statements), sorting,
+    decoration, and the dropdown catalog builds to single-purpose
+    helpers. CC is bounded by the number of distinct concerns, not by
+    the per-concern work.
+
     ingredient_id comes from a form hidden field that may be empty (when the user
-    hasn't picked an ingredient from the combo). Empty string → no filter.
+    hasn't picked an ingredient from the combo). Empty string -> no filter.
 
     ingredient_ids (US 3.2) accepts a comma-separated list. A recipe matches if
     it uses ALL listed ingredients. The single-id legacy parameter still works.
 
     Batch-loaded to avoid N+1 on Neon.
     """
-    # Coerce single-id (legacy) into the multi-id list for unified handling.
-    ing_id_ints: list[int] = []
-    if ingredient_id and ingredient_id.strip():
-        try:
-            ing_id_ints.append(int(ingredient_id))
-        except (TypeError, ValueError) as exc:
-            # Bad URL param — skip this id but keep parsing the rest.
-            logger.debug("recipes filter: bad ingredient_id: {}", exc)
-    # Parse multi-id list. Strip whitespace, ignore empties, validate as int, dedupe.
-    if ingredient_ids and ingredient_ids.strip():
-        for raw in ingredient_ids.split(","):
-            raw = raw.strip()
-            if not raw:
-                continue
-            try:
-                val = int(raw)
-            except ValueError:
-                continue
-            if val not in ing_id_ints:
-                ing_id_ints.append(val)
+    ing_id_ints = _parse_recipe_ingredient_ids(ingredient_id, ingredient_ids, request)
+    familias_sel, dif_sel, diet_sel = _parse_recipe_filter_lists(
+        request, familia, dificultad, dieteticas
+    )
 
-    # P3 UX batch: multi-select popover posts repeated ?ingredient_multi=N
-    # params — merge into the same AND-semantics id set.
-    for raw in request.query_params.getlist("ingredient_multi"):
-        raw = raw.strip()
-        if not raw:
-            continue
-        try:
-            val = int(raw)
-        except ValueError:
-            continue
-        if val not in ing_id_ints:
-            ing_id_ints.append(val)
-
-    # Base query — first count for pagination
-    familias_sel = [x.strip() for x in familia.split(",") if x.strip()]
-    # Accept both ?dificultad=1&dificultad=3 (repeated) and ?dificultad=1,3
-    dif_sel = [
-        d.strip()
-        for d in request.query_params.getlist("dificultad")
-        for d in d.split(",")
-        if d.strip()
-    ]
-    diet_sel = [x.strip() for x in dieteticas.split(",") if x.strip()]
-
+    # Base query - first count for pagination
     count_stmt = select(func.count(Recipe.id))
-    if q:
-        count_stmt = count_stmt.where(Recipe.name.ilike(f"%{q}%"))
-    if familias_sel:
-        # UI-V2: match legacy family OR the multi-select menu_tags column.
-        from sqlalchemy import or_ as _or
-
-        count_stmt = count_stmt.where(
-            _or(
-                Recipe.family.in_(familias_sel),
-                *[Recipe.menu_tags.ilike(f"%{tag}%") for tag in familias_sel],
-            )
-        )
-    if dif_sel:
-        try:
-            dif_ints = [int(d) for d in dif_sel]
-            count_stmt = count_stmt.where(Recipe.difficulty.in_(dif_ints))
-        except ValueError as exc:
-            # Bad difficulty query param — just don't filter.
-            logger.debug("recipes difficulty filter dropped: {}", exc)
-    if diet_sel:
-        for tag in diet_sel:
-            count_stmt = count_stmt.where(Recipe.dietary_tags.ilike(f"%{tag}%"))
-    if ing_id_ints:
-        # AND semantics: recipe must use ALL of these ingredients.
-        # Subquery: pick recipe_ids that have N distinct line_ref_id matches.
-        from sqlalchemy import func as _func
-
-        match_subq = (
-            select(RecipeLine.recipe_id)
-            .where(
-                RecipeLine.line_kind == "ingredient",
-                RecipeLine.line_ref_id.in_(ing_id_ints),
-            )
-            .group_by(RecipeLine.recipe_id)
-            .having(_func.count(_func.distinct(RecipeLine.line_ref_id)) == len(ing_id_ints))
-            .subquery()
-        )
-        count_stmt = count_stmt.where(Recipe.id.in_(select(match_subq.c.recipe_id)))
+    count_stmt = _apply_recipes_search_filters(
+        count_stmt, q, familias_sel, dif_sel, diet_sel, ing_id_ints
+    )
     total_count = session.scalar(count_stmt) or 0
 
     # Building data stmt
     stmt = select(Recipe)
-
-    # Search filter
-    if q:
-        stmt = stmt.where(Recipe.name.ilike(f"%{q}%"))
-    if familias_sel:
-        # UI-V2: match legacy family OR the multi-select menu_tags column.
-        from sqlalchemy import or_ as _or
-
-        stmt = stmt.where(
-            _or(
-                Recipe.family.in_(familias_sel),
-                *[Recipe.menu_tags.ilike(f"%{tag}%") for tag in familias_sel],
-            )
-        )
-    if dif_sel:
-        try:
-            stmt = stmt.where(Recipe.difficulty.in_([int(d) for d in dif_sel]))
-        except ValueError as exc:
-            # Bad difficulty query param — just don't filter.
-            logger.debug("recipes difficulty filter dropped: {}", exc)
-    if diet_sel:
-        for tag in diet_sel:
-            stmt = stmt.where(Recipe.dietary_tags.ilike(f"%{tag}%"))
-
-    # Ingredient filter: find recipes that use ALL of these ingredients
-    if ing_id_ints:
-        from sqlalchemy import func as _func
-
-        match_subq = (
-            select(RecipeLine.recipe_id)
-            .where(
-                RecipeLine.line_kind == "ingredient",
-                RecipeLine.line_ref_id.in_(ing_id_ints),
-            )
-            .group_by(RecipeLine.recipe_id)
-            .having(_func.count(_func.distinct(RecipeLine.line_ref_id)) == len(ing_id_ints))
-            .subquery()
-        )
-        stmt = stmt.where(Recipe.id.in_(select(match_subq.c.recipe_id)))
-
-    # Sorting
-    sort_col = {
-        "name": Recipe.name,
-        "yield_qty": Recipe.yield_qty,
-        "batch_cost_gs": Recipe.id,  # Will override after cost calc
-    }.get(sort, Recipe.name)
-    if dir == "desc":
-        stmt = stmt.order_by(sort_col.desc())
-    else:
-        stmt = stmt.order_by(sort_col.asc())
+    stmt = _apply_recipes_search_filters(stmt, q, familias_sel, dif_sel, diet_sel, ing_id_ints)
+    stmt = _apply_recipes_sql_sort(stmt, sort, dir)
 
     # Pagination
     offset = (page - 1) * page_size
@@ -290,60 +416,12 @@ async def recipes_list(
         )
         for r in recipes
     ]
-
-    # P3 UX batch: sort EVERY column in-memory after decoration — costs,
-    # difficulty, prep/cook are computed values, not plain columns. The
-    # SQL order_by above remains for name/yield (deterministic pagination);
-    # this final pass re-orders the current page's rows by the chosen key.
-    _sort_keys = {
-        "name": lambda x: (x["name"] or "").lower(),
-        "yield_qty": lambda x: x["yield_qty"] or 0,
-        "batch_cost_gs": lambda x: x["batch_cost_gs"] or 0,
-        "unit_cost_gs": lambda x: x["unit_cost_gs"] or 0,
-        "prep_minutes": lambda x: x["prep_minutes"] or 0,
-        "cook_minutes": lambda x: x["cook_minutes"] or 0,
-        "difficulty": lambda x: x["difficulty"] or 0,
-        "line_count": lambda x: x["line_count"] or 0,
-    }
-    if sort in _sort_keys:
-        decorated.sort(key=_sort_keys[sort], reverse=(dir == "desc"))
+    _apply_recipes_in_memory_sort(decorated, sort, dir)
 
     # Ingredient list for filter dropdown
     all_ingredients = session.scalars(select(Ingredient).order_by(Ingredient.name)).all()
-
-    from app.rms.tagging.ensure import (
-        list_tags_for_kind,  # canonical home (post-sense-dedup, 2026-10-09)
-    )
-
-    # SASKIA-211: source families from BOTH Recipe.family (legacy)
-    # and the first tag of Recipe.menu_tags (post-menu_tags migration).
-    # Many recipes now have menu_tags set but family=None, so the
-    # dropdown would render empty if we only queried the legacy column.
-    all_families = sorted(
-        {
-            f
-            for f in (
-                [
-                    f
-                    for (f,) in session.execute(
-                        select(Recipe.family).where(Recipe.family.is_not(None)).distinct()
-                    )
-                    if f
-                ]
-                + [
-                    tag.strip()
-                    for (mt,) in session.execute(
-                        select(Recipe.menu_tags).where(Recipe.menu_tags.is_not(None)).distinct()
-                    )
-                    if mt
-                    for tag in mt.split(",")
-                    if tag.strip()
-                ]
-            )
-            if f
-        }
-    )
-    all_tags = [t.name for t in list_tags_for_kind(session, "recipe")]
+    all_families = _list_all_recipe_families(session)
+    all_tags = _list_all_recipe_tags(session)
     total_all = session.scalar(select(func.count(Recipe.id))) or 0
     return render(
         request,
