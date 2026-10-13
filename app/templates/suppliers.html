@@ -18,79 +18,97 @@
 {% if suppliers %}
 {{ ui.skeleton_section(id="suppliers-table", variant="line", count=8, label="Cargando proveedores") }}
 <div data-loaded-section="suppliers-table">
-<table class="table is-hoverable is-striped">
+<div class="table-wrap">
+<table class="table is-hoverable is-striped mb-0 ops-list supplier-list">
   <thead>
     <tr>
-      <th>Nombre</th>
-      <th>Contacto</th>
-      <th>Teléfono</th>
-      <th>Email</th>
-      <th>RUC</th>
-      <th>Ingredientes</th>
-      <th class="actions"></th>
+      <th>
+        <div class="ops-list__l1">
+          <span class="supplier-list__name">Nombre</span>
+          <span class="supplier-list__phone">Teléfono</span>
+          <span class="ops-list__details">Ver detalles</span>
+        </div>
+      </th>
     </tr>
   </thead>
   <tbody>
     {% for s in suppliers %}
     <tr class="{% if not s.is_active %}is-inactive{% endif %}">
       <td>
-        <strong data-copy="{{ s.id }}">{{ fmt.entity_name(s) }}</strong>
-        {% if not s.is_active %}<span class="badge badge-muted">inactivo</span>{% endif %}
-      </td>
-      <td>{{ s.contact_name or "—" }}</td>
-      <td>{{ s.phone or "—" }}</td>
-      <td>{{ s.email or "—" }}</td>
-      <td>{{ s.ruc or "—" }}</td>
-      <td>
-        {% if s.ingredients %}
-          <span class="badge badge-neutral">{{ s.ingredients|length }}</span>
-          {% for ing in s.ingredients[:3] %}{{ fmt.entity_name(ing) }}{% if not loop.last %}, {% endif %}{% endfor %}
-          {% if s.ingredients|length > 3 %}…{% endif %}
-        {% else %}
-          <em class="muted">ninguno</em>
-        {% endif %}
-      </td>
-      <td class="actions">
-        <a href="/suppliers/{{ s.id }}/precios" class="btn btn-sm btn-ghost">
-          <svg class="icon" aria-hidden="true"><use href="#icon-tag"/></svg>
-          Ver precios
-        </a>
-        <a href="/suppliers/{{ s.id }}/ordenes" class="btn btn-sm btn-ghost">
-          <svg class="icon" aria-hidden="true"><use href="#icon-whatsapp"/></svg>
-          Ordenar
-        </a>
-        <a href="/suppliers/{{ s.id }}/editar" class="btn btn-sm btn-ghost">
-          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
-          Editar
-        </a>
-        {# Soft-delete (preserves history). Reactivation lives at the
-           same endpoint pattern. Inactive rows still render below. #}
-        {% if s.is_active %}
-        <form method="post" action="/suppliers/{{ s.id }}/eliminar" 
-              class="js-confirm-form d-inline" data-confirm-title="¿Desactivar proveedor?" data-confirm-body="¿Desactivar {{ fmt.entity_name(s) }}? Los ingredientes vinculados conservan su referencia pero el proveedor no aparece en /reorder. Podés reactivarlo después." data-confirm-danger="true">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button type="submit" class="btn btn-sm btn-danger">Desactivar</button>
-        </form>
-        {% else %}
-        <form class="d-inline" method="post" action="/suppliers/{{ s.id }}/reactivar" >
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button type="submit" class="btn btn-sm btn-good">
-            <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
-            Reactivar
-          </button>
-        </form>
-        {% endif %}
+        <div class="ops-list__l1">
+          <div class="supplier-list__name">
+            <strong data-copy="{{ s.id }}">{{ fmt.entity_name(s) }}</strong>
+            {% if not s.is_active %}<span class="badge badge-muted">inactivo</span>{% endif %}
+          </div>
+          <div class="supplier-list__phone">{{ s.phone or "—" }}</div>
+          <details class="row-meta-details ops-list__details">
+            <summary>Ver detalles</summary>
+            <div class="inv-list__panel">
+              <div class="inv-list__field">
+                <span class="inv-list__label">Contacto</span>
+                {{ s.contact_name or "—" }}
+              </div>
+              <div class="inv-list__field">
+                <span class="inv-list__label">Email</span>
+                {{ s.email or "—" }}
+              </div>
+              <div class="inv-list__field">
+                <span class="inv-list__label">RUC</span>
+                {{ s.ruc or "—" }}
+              </div>
+              <div class="inv-list__field">
+                <span class="inv-list__label">Ingredientes</span>
+                {% if s.ingredients %}
+                  <span class="badge badge-neutral">{{ s.ingredients|length }}</span>
+                  {% for ing in s.ingredients[:3] %}{{ fmt.entity_name(ing) }}{% if not loop.last %}, {% endif %}{% endfor %}
+                  {% if s.ingredients|length > 3 %}…{% endif %}
+                {% else %}
+                  <em class="muted">ninguno</em>
+                {% endif %}
+              </div>
+              <div class="inv-list__actions">
+                <a href="/suppliers/{{ s.id }}/precios" class="btn btn-sm btn-ghost">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-tag"/></svg>
+                  Ver precios
+                </a>
+                <a href="/suppliers/{{ s.id }}/ordenes" class="btn btn-sm btn-ghost">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-whatsapp"/></svg>
+                  Ordenar
+                </a>
+                <a href="/suppliers/{{ s.id }}/editar" class="btn btn-sm btn-ghost">
+                  <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+                  Editar
+                </a>
+                {# Soft-delete (preserves history). Reactivation lives at the
+                   same endpoint pattern. Inactive rows still render below. #}
+                {% if s.is_active %}
+                <form method="post" action="/suppliers/{{ s.id }}/eliminar" class="js-confirm-form d-inline" data-confirm-title="¿Desactivar proveedor?" data-confirm-body="¿Desactivar {{ fmt.entity_name(s) }}? Los ingredientes vinculados conservan su referencia pero el proveedor no aparece en /reorder. Podés reactivarlo después." data-confirm-danger="true">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="btn btn-sm btn-danger">Desactivar</button>
+                </form>
+                {% else %}
+                <form class="d-inline" method="post" action="/suppliers/{{ s.id }}/reactivar">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                  <button type="submit" class="btn btn-sm btn-good">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-check"/></svg>
+                    Reactivar
+                  </button>
+                </form>
+                {% endif %}
+              </div>
+            </div>
+          </details>
+        </div>
       </td>
     </tr>
     {% endfor %}
   </tbody>
-</div>
 </table>
-{% if suppliers %}
+</div>
 <div class="table-info">
   <span>Mostrando <strong>{{ page_start }}–{{ page_end }}</strong> de <strong>{{ total }}</strong> proveedores</span>
 </div>
-{% endif %}
+</div>
 {% else %}
 {{ ui.empty_state(title="No hay proveedores todavía", icon="icon-supplier", hint="Agregá proveedores para poder contactarlos desde la página de reorden.", cta_href="/suppliers/nuevo", cta_label="Agregar el primero") }}
 {% endif %}

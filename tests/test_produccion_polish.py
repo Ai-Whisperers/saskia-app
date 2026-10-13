@@ -238,24 +238,12 @@ class TestCierreColumnWidth:
     """V1 — 'Cerrar turno' button needs ~10rem to not wrap."""
 
     def test_cierre_column_width_at_least_8rem(self):
-        # 2026-10-07: Cierre is now 8rem (was 10rem — column renamed,
-        # denser layout). Find the Cierre <th> and check its width.
-        import re
-
-        m = re.search(r'<table[^>]*class="table is-hoverable align-middle[^"]*"', TEMPLATE_BODY)
-        assert m
-        thead_start = TEMPLATE_BODY.find("<thead", m.start())
-        thead_end = TEMPLATE_BODY.find("</thead>", thead_start)
-        thead = TEMPLATE_BODY[thead_start:thead_end]
-        # The Cierre <th> starts with `<th` and the next "Cierre" text is
-        # inside it. We anchor on the opening tag.
-        cierre_match = re.search(r"<th[^>]*>(?:[^<]|<(?!/th))*Cierre", thead)
-        assert cierre_match, "Cierre <th> must exist in thead"
-        th_html = cierre_match.group(0)
-        wmatch = re.search(r"width:\s*([\d.]+)rem", th_html)
-        assert wmatch, f"no rem width on Cierre th: {th_html}"
-        w = float(wmatch.group(1))
-        assert w >= 8.0, f"Cierre column should be >= 8rem wide (got {w}rem)"
+        # Day-plan makeover: Cierre left the thead and lives under Ver detalles,
+        # where the "Cerrar turno" button is not squeezed into an 8rem column.
+        loop = _production_row_loop_body()
+        assert "Cierre" in loop
+        assert "Cerrar turno" in loop
+        assert "Ver detalles" in loop
 
 
 # ─── V6: HACCP chips wrap ──────────────────────────────────────────────────
@@ -453,9 +441,7 @@ class TestTableOverhaulColumns:
     into a tiny colored icon."""
 
     def test_difficulty_is_its_own_thead_column(self):
-        """Difficulty must be a separate <th> — not embedded in Producto."""
-        # The thead for the products table starts after
-        # <table class="table is-hoverable align-middle ...>"
+        """Difficulty stays its own field under Ver detalles, not inline in Producto."""
         import re
 
         m = re.search(r'<table[^>]*class="table is-hoverable align-middle[^"]*"', TEMPLATE_BODY)
@@ -464,9 +450,10 @@ class TestTableOverhaulColumns:
         thead_start = TEMPLATE_BODY.find("<thead", table_idx)
         thead_end = TEMPLATE_BODY.find("</thead>", thead_start)
         thead = TEMPLATE_BODY[thead_start:thead_end]
-        assert "Dificultad" in thead, (
-            "Dificultad must be a thead column header (not inline in Producto)"
-        )
+        assert "Dificultad" not in thead
+        loop = _production_row_loop_body()
+        assert "Dificultad" in loop
+        assert "Ver detalles" in loop
 
     def test_allergen_badges_removed_from_row_body(self):
         """The row body must NOT render '⚠️ gluten, dairy, eggs' badges —
@@ -734,29 +721,13 @@ class TestOrigenScoreInsteadOfHelpLink:
         )
 
     def test_origen_header_has_help_tooltip(self):
-        """The column header for Origen should have a single ?/tooltip
-        explaining all confidence bands — not per-cell."""
-        import re
-
-        m = re.search(r'<table[^>]*class="table is-hoverable align-middle[^"]*"', TEMPLATE_BODY)
-        thead_start = TEMPLATE_BODY.find("<thead", m.start())
-        thead_end = TEMPLATE_BODY.find("</thead>", thead_start)
-        thead = TEMPLATE_BODY[thead_start:thead_end]
-        # The Origen th should contain "Origen" plus a helper link.
-        # Use a greedy regex that captures the full <th>...</th> so nested
-        # elements (span, a) don't break the match.
-        origen_th = re.search(
-            r"<th[^>]*>(?:(?!</th>).)*Origen(?:(?!</th>).)*</th>",
-            thead,
-            re.DOTALL,
-        )
-        assert origen_th, "Origen <th> must exist"
-        th_html = origen_th.group(0)
-        assert "Origen" in th_html
-        # The confidence modal anchor should be referenced somewhere (we
-        # can find it by href="#confidence-modal" or data-confidence-help).
-        assert "#confidence-modal" in th_html or "data-confidence-help" in th_html, (
-            "Origen header must carry the confidence helper link"
+        """Origen keeps a single ?/tooltip for the confidence bands."""
+        loop_body = _production_row_loop_body()
+        assert "Origen" in loop_body
+        origen_at = loop_body.find("Origen")
+        window = loop_body[origen_at : origen_at + 400]
+        assert "#confidence-modal" in window or "data-confidence-help" in window, (
+            "Origen field must carry the confidence helper link"
         )
 
 
@@ -777,7 +748,7 @@ class TestSobranteGraduatedColor:
         assert "surplus-pill" in loop_body, "Sobrante must use the surplus-pill component"
         # CSS rule for tiers must exist
         css_path = pathlib.Path(__file__).parent.parent / "app" / "static" / "app-improvements.css"
-        css = css_path.read_text()
+        css = css_path.read_text(encoding="utf-8")
         tier_rules = re.findall(r"\.surplus-(?:tier|level|band)-[a-z]+", css)
         assert len(tier_rules) >= 2, f"need ≥2 surplus tier CSS rules (got {len(tier_rules)})"
 
@@ -789,7 +760,7 @@ class TestSobranteGraduatedColor:
         )
         if not prep_path.exists():
             return  # skip if file missing
-        prep_src = prep_path.read_text()
+        prep_src = prep_path.read_text(encoding="utf-8")
         # The to_buy cell should not hardcode color-danger for the inline color style
         assert "color: var(--color-danger" not in prep_src, (
             "produccion_prep to_buy must not hardcode color-danger (looks bad)"
@@ -805,15 +776,15 @@ class TestPrepTableSmartFeatures:
     def test_prep_table_has_sort_th_macro(self):
         if not self.PREP.exists():
             return
-        body = self.PREP.read_text()
+        body = self.PREP.read_text(encoding="utf-8")
         assert "m.sort_th" in body, "produccion_prep must use sort_th macro for sortable headers"
 
     def test_prep_table_sticky_or_scrollable(self):
         if not self.PREP.exists():
             return
-        body = self.PREP.read_text()
+        body = self.PREP.read_text(encoding="utf-8")
         css_path = pathlib.Path(__file__).parent.parent / "app" / "static" / "app-improvements.css"
-        css = css_path.read_text()
+        css = css_path.read_text(encoding="utf-8")
         # Either inline style or CSS class for sticky/scroll
         assert (
             ("position: sticky" in body)
@@ -924,18 +895,18 @@ class TestIngredientsTableRemovedInProductionPage:
         )
 
     def test_link_card_to_shopping_list(self):
-        """The new link card must point to /shopping-list so the
-        operator can see the missing-to-buy list."""
-        idx = TEMPLATE_BODY.find('data-section="ingredients-link-card"')
-        window = TEMPLATE_BODY[idx : idx + 1500]
-        assert "/shopping-list" in window, "link card must point to /shopping-list"
+        """Lista de compras lives in Más (the page overflow), still on this template."""
+        idx = TEMPLATE_BODY.find('class="more-menu"')
+        assert idx > 0
+        window = TEMPLATE_BODY[idx : idx + 6000]
+        assert "/shopping-list" in window, "Más must point to /shopping-list"
 
     def test_link_card_to_reorder(self):
-        """The new link card must also point to /reorder for the
-        stock-reorder route (was in the old section)."""
-        idx = TEMPLATE_BODY.find('data-section="ingredients-link-card"')
-        window = TEMPLATE_BODY[idx : idx + 1500]
-        assert "/reorder" in window, "link card must also link to /reorder"
+        """Reponer lives in Más, still on this template."""
+        idx = TEMPLATE_BODY.find('class="more-menu"')
+        assert idx > 0
+        window = TEMPLATE_BODY[idx : idx + 6000]
+        assert "/reorder" in window, "Más must link to /reorder"
 
     def test_link_card_hidden_when_no_plan_lines(self):
         """When the plan has no ingredient lines, the link card
