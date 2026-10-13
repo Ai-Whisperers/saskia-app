@@ -1,3 +1,25 @@
+## 2026-10-13 — refactor(produccion): SASKIA-211x _sort_value → table-lookup (CC 21→3)
+
+**Scope**: `app/routers/produccion/_full.py` (`_sort_value` helper).
+
+Replaced the 9-branch if/elif chain with a `_SORT_VALUE_EXTRACTORS`
+dispatch dict keyed by `VALID_SORT_KEYS`. The main function is now a
+1-line table lookup with a default that falls back to `_lote_final`
+(preserves the old `else: lote_final` fallback behavior for unknown keys).
+Extracted `_lote_final(row)` as a named helper since it's the default
+fallback and is referenced from the dict literal.
+
+Parity verified across all 9 valid keys + unknown-key fallback:
+`(product_name, difficulty, demand, meta, pedidos, lote, hecho,
+sobrante, closure)` each return the same primary+tiebreak tuple the old
+chain produced. 36 produccion tests pass (test_produccion_worksheet,
+test_produccion_helpers, test_produccion_prep, test_produccion_print,
+test_saskia_r2_carryover_fixes).
+
+Adding a new sortable column = one lambda entry; no more editing the
+chain. `_lote_final` is named so future readers see what "lote" means
+without scrolling back to the if/elif.
+
 ## 2026-10-12 — refactor(recipes): SASKIA-211x split recipes_list into 7 helpers (CC 65→8)
 
 **Scope**: `app/routers/recipes.py` (recipes_list function).
