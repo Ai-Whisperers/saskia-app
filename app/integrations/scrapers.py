@@ -19,8 +19,13 @@ present them as a dropdown of "latest prices scraped from suppliers."
 Resilience:
 
   - **Timeouts**: every request has 12s timeout. Bots never hang forever.
+  - **Transient retries**: HTTP errors are wrapped in
+    ``app.retry.retry_transient`` (default ``attempts=3`` with
+    exponential backoff). Transient = 5xx, 429, connection / timeout.
+    Non-transient 4xx (e.g. 404) re-raise immediately.
   - **Empty query**: returns empty list (no HTTP call).
-  - **Site unreachable / 5xx**: returns empty list, logs at WARNING.
+  - **Site unreachable / 5xx**: returns empty list, logs at WARNING
+    after the 3rd attempt fails.
   - **No match**: returns empty list (NOT an error).
   - **HTML structure changed**: regexes miss → empty list. The parser is
     intentionally loose so it doesn't break on minor CSS class tweaks.
@@ -43,6 +48,8 @@ from html.parser import HTMLParser
 from typing import Iterable
 
 import httpx
+
+from app.retry import retry_transient
 
 logger = logging.getLogger(__name__)
 
@@ -306,18 +313,32 @@ def scrape_superseis(query: str) -> ScrapeResult:
 
     Empty query → empty result, no HTTP call.
     Site unreachable → empty result with error message.
+
+    The HTTP call is wrapped in ``retry_transient`` (S2 robustness PR6)
+    so transient failures (429, 5xx, network timeouts, connection
+    resets) are retried with exponential backoff. Non-transient 4xx
+    errors still surface immediately via the ``httpx.HTTPError``
+    branch below.
     """
     query = (query or "").strip()
     if not query:
         return ScrapeResult(source="superseis", query=query)
-    try:
+
+    def _fetch() -> str:
         with _client() as c:
             r = c.get(
                 "https://www.superseis.com.py/buscar",
                 params={"q": query},
             )
             r.raise_for_status()
-            html = r.text
+            return r.text
+
+    try:
+        html = retry_transient(
+            _fetch,
+            attempts=3,
+            op_name="scrapers.superseis.fetch",
+        )
     except httpx.HTTPError as e:
         logger.warning("superseis fetch failed for %r: %s", query, e)
         return ScrapeResult(source="superseis", query=query, error=f"fetch failed: {e}")
@@ -396,14 +417,22 @@ def scrape_stock(query: str) -> ScrapeResult:
     query = (query or "").strip()
     if not query:
         return ScrapeResult(source="stock", query=query)
-    try:
+
+    def _fetch() -> str:
         with _client() as c:
             r = c.get(
                 "https://www.stock.com.py/default.aspx",
                 timeout=15.0,
             )
             r.raise_for_status()
-            html = r.text
+            return r.text
+
+    try:
+        html = retry_transient(
+            _fetch,
+            attempts=3,
+            op_name="scrapers.stock.fetch",
+        )
     except httpx.HTTPError as e:
         return ScrapeResult(
             source="stock",
