@@ -366,21 +366,19 @@ In `app/rms/seed/sazon.py` (or a new `app/rms/seed/seasonal.py`):
 ```python
 def seed_seasonal_events(session: Session, *, year_range: tuple[int, int] = (2026, 2028)) -> int:
     """Insert the full PY + NL heritage SeasonalEvent catalog.
-
+    
     SASKIA-216 (2026-10-12). Idempotent: skip if (country, slug, event_date) exists.
     Returns the number of rows inserted.
-
+    
     The `relevance_tags` column is a CSV of pack slugs that should display this event.
     An empty string means ALL packs see it (universal events).
     """
     rows = _build_event_catalog(year_range)
     inserted = 0
     for row in rows:
-        existing = (
-            session.query(SeasonalEvent)
-            .filter_by(country=row["country"], slug=row["slug"], event_date=row["event_date"])
-            .first()
-        )
+        existing = session.query(SeasonalEvent).filter_by(
+            country=row['country'], slug=row['slug'], event_date=row['event_date']
+        ).first()
         if existing:
             continue
         session.add(SeasonalEvent(**row))
@@ -408,24 +406,17 @@ def _build_event_catalog(year_range: tuple[int, int]) -> list[dict]:
 The UI (SASKIA-217) reads the `relevance_tags` column and filters:
 
 ```python
-def get_calendar_for_tenant(
-    session: Session, tenant: Tenant, lead_days: int = 30
-) -> list[SeasonalEvent]:
+def get_calendar_for_tenant(session: Session, tenant: Tenant, lead_days: int = 30) -> list[SeasonalEvent]:
     today = date.today()
     horizon = today + timedelta(days=180)  # show 6 months ahead
-    return (
-        session.query(SeasonalEvent)
-        .filter(
-            SeasonalEvent.event_date >= today,
-            SeasonalEvent.event_date <= horizon,
-            or_(
-                SeasonalEvent.relevance_tags == "",  # universal
-                SeasonalEvent.relevance_tags.like(f"%{tenant.pack_slug}%"),
-            ),
+    return session.query(SeasonalEvent).filter(
+        SeasonalEvent.event_date >= today,
+        SeasonalEvent.event_date <= horizon,
+        or_(
+            SeasonalEvent.relevance_tags == "",  # universal
+            SeasonalEvent.relevance_tags.like(f"%{tenant.pack_slug}%"),
         )
-        .order_by(SeasonalEvent.event_date)
-        .all()
-    )
+    ).order_by(SeasonalEvent.event_date).all()
 ```
 
 Each tenant sees only their pack's events. The `relevance_tags` is the filter; the DB is shared.
