@@ -1,3 +1,21 @@
+## 2026-10-13 — test(retry): wire retry_transient at R2 + SMTP call sites (S2 robustness PR7 wiring test gate)
+
+**Scope**: `tests/test_retry_wiring_2.py` (new, 12 tests), `app/services/r2_backup.py` + `app/integrations/email_outbound.py` (import path fixes from `app.rms.retry` → `app/retry.py`, post-#187 module move).
+
+Adopts the S2 robustness retry helper (`app/retry.py:retry_transient`, added in PR2) at the two S3+ wiring targets PR7 introduced:
+
+- `app/services/r2_backup.py` — wraps `Storage.put` / `Storage.get` (called from `encrypt_and_upload` and `download_and_decrypt`) in `retry_transient(attempts=3, is_transient=_r2_is_transient, ...)`. The classifier reads the embedded HTTP status from `botocore.exceptions.ClientError` and retries on 5xx / 429, re-raises on 4xx (NoSuchKey / 404 / InvalidArgument — operator-actionable).
+- `app/integrations/email_outbound.py` — wraps `smtplib.SMTP` send via `send_email_outbound(attempts=3, is_transient=_email_is_transient, ...)`. Transient on `SMTPConnectError` / `SMTPServerDisconnected` / `SMTPTimeoutError` / `socket.timeout`; terminal on `SMTPAuthenticationError` (bad creds, returns `False`) and `EmailConfigError` (raises immediately).
+
+Test gate (`tests/test_retry_wiring_2.py`, 12 tests, all pass via `uv run rtk pytest tests/test_retry_wiring_2.py --no-cov` in ~29 s):
+
+- 2 classifier sanity tests — default_is_transient doesn't know `botocore.ClientError` or `smtplib.SMTPConnectError`; our custom classifiers do.
+- 3 R2 happy-path tests — recovers from `ClientError(503)` on `put`, recovers on `get`, raises immediately on `ClientError(400)` (no retries, no backoff).
+- 4 email tests — retries on `SMTPConnectError`, retries on `socket.timeout`, returns `False` (terminal) on `SMTPAuthenticationError`, raises `EmailConfigError` immediately on missing config (no retry attempt).
+- 1 parametrized "honors attempts=3 cap" test covering `r2_put` / `r2_get` / `email` (3 cases): all exhaust exactly 3 attempts before re-raising, producing 2 backoff sleeps.
+
+Both source files had `from app.rms.retry import retry_transient` which broke when the helper moved to `app/retry.py` (post-#187). Fixed the imports; the rest of the wiring (classifier + retry_transient calls + classifier semantics) was already in place from the original PR7.
+
 ## 2026-10-12 — refactor(routers): silent broad-except sweep in app/routers/ + new test gate (S2 robustness PR4)
 
 **Scope**: `tests/test_silent_excepts_routers.py` (new, 54 router-scanned + 3 sanity/audit = 57 tests), `app/routers/{insights,dashboard,settings,customers,eod,health,pedidos,produccion/_full,recipes,inventory,products,merma,reorder,sales}.py` (37 small additive sites).
