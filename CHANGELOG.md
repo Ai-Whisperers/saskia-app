@@ -1,3 +1,32 @@
+## 2026-10-13 — test(s1-batch6): parametrize _pedido_resolve_customer + _pedido_persist_address_book_entry (CC 24 + 23, D-grade → +16 cases)
+
+**Scope**: `tests/test_d_grade_helpers_batch6.py` (new, ~830 lines). Continues the s1-batch3/4/5 pattern of locking D-grade branch matrices with parametrized rows.
+
+Drives two D-grade pedido router helpers through `@pytest.mark.parametrize("row", _ROWS_*, ids=lambda r: r["spec"].id)`. Both are pure helper functions in `app/routers/pedidos.py` (no FastAPI Request/Depends template-render context), so they're called directly with `session_factory()` rather than via the TestClient `client` fixture.
+
+- **`app/routers/pedidos.py:_pedido_resolve_customer`** — CC 24 (radon D-grade) — 8 scenarios:
+  - `existing_id_no_writeback` — cust_id resolves, form values identical to existing → no field updates (locks the `cust_phone and cust_phone != (cust_obj.phone or "")` guard against writes)
+  - `existing_id_phone_updated` — cust_id resolves, form sends new phone → phone is overwritten (locks the same guard's positive branch)
+  - `existing_id_fill_blank_ruc` — existing customer with no `invoice_ruc`, form supplies one → ruc filled (locks the `if invoice_ruc and not (cust_obj.invoice_ruc or "")` fill-blank branch)
+  - `missing_cust_id_raises_400` — cust_id points to no Customer → raises `HTTPException(400, "cliente no encontrado")` (locks the `cust_obj is None` branch in the by-id path)
+  - `no_id_no_name_returns_none` — no cust_id AND blank name → returns `None`; no Customer created (locks the early-return branch; locks no-DB-mutation via the post-call `count(Customer)==0` assertion)
+  - `name_matches_existing` — name matches existing (case-insensitive via `func.lower`) → returns that Customer and fills a blank phone (locks the `existing is not None` branch + the `not (existing.phone or "")` fill-blank phone branch)
+  - `new_customer_auto_created` — name is new → auto-create with phone / invoice_ruc / invoice_name (locks the `Customer(...); session.add(); flush()` auto-create branch)
+  - `new_customer_whitespace_ruc_normalized` — new customer with whitespace-only `invoice_ruc` and `invoice_name` → stored as `None` (locks the `(invoice_ruc or "").strip() or None` normalization branch; intentional Oracle-style bug-bar)
+- **`app/routers/pedidos.py:_pedido_persist_address_book_entry`** — CC 23 (radon D-grade) — 8 scenarios:
+  - `save_box_unchecked_noop` — `save_address="0"` → no `CustomerAddress` row (locks the early-return `save_address != "1"` branch)
+  - `blank_address_text_noop` — `save_address="1"` but `address_text` is whitespace-only → no-op (locks the `not (address_text or "").strip()` guard)
+  - `no_customer_noop` — `save_address="1"` but `cust_obj is None` → no-op (locks the `not cust_obj` branch)
+  - `first_address_is_default_true` — first address for customer → `is_default=True`, label falls back to `"casa"` (locks the `(address_label or "casa").strip()[:32] or "casa"` default-fallback + `first_for_customer` True branch); also asserts `calle_principal="Av. Principal"` (structured field propagation), `pais="PRY"` (default), `address_kind="HOME"` (default fallback)
+  - `second_address_is_default_false` — pre-seeds one address row, then the helper adds a SECOND → `is_default=False` (locks the `first_for_customer` False branch); label uses operator input `"Oficina"` (locks the `(address_label or "casa")` non-fallback branch)
+  - `blank_structured_fields_null` — all structured fields blank → stored as `None` (not `""`) (locks the `address_X.strip() or None` branch for every nullable field)
+  - `zone_id_stamps_customer_preference` — `zone_id` set + `customer.preferred_zone_id is None` → customer's preference stamped (locks the `if zone_int and not cust_obj.preferred_zone_id:` positive branch)
+  - `zone_id_does_not_overwrite_existing_preference` — `zone_id` set but customer's preference is already set → preference is unchanged (locks the `not cust_obj.preferred_zone_id` guard's negative branch)
+
+Both helpers had **no direct unit tests** before this file. The pedido regression tests (`test_P10_*`, `test_P11_*`, `test_P33_*`) cover end-to-end flows that pass through these helpers, but the helpers themselves were never pinned at the helper boundary.
+
+All 17 tests pass locally (`uv run rtk pytest tests/test_d_grade_helpers_batch6.py --no-cov`). 16 parametrize cases + 1 row-count doc test (`assert len(_ROWS_RESOLVE) == 8 and len(_ROWS_ADDRESS) == 8`).
+
 ## 2026-10-13 — test(s1-batch5): parametrize margin_drift_all + from_workbook (CC 22 + D-grade, +13 cases, 33%→~35%)
 
 **Scope**: `tests/test_d_grade_helpers_batch5.py` (new, ~570 lines).
