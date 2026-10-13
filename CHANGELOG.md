@@ -26,6 +26,31 @@ All 14 cases pass locally (`uv run rtk pytest tests/test_d_grade_helpers_batch5.
 
 **Note**: `libro_ventas` (CC 21, D-grade) was covered in #174, `bank_list` + `shopping_list_index` (CC 21 each) in #178, and `_sort_value` (CC 21) in #172. This file covers the next 2 D-grade offenders from the S1 audit: `margin_drift_all` (CC 22) and `from_workbook` (the import_xlsx public entry). The remaining D-grade offenders in `import_xlsx` are `_validate_workbook` (CC 28) and `_import_patch_ingredientes` (CC 23), both already partially covered by `tests/test_excel_patch.py`; not doubled here to avoid churn.
 
+## 2026-10-13 — feat(rms): AppError -> Sentry level mapping + `app/rms/sentry.py` (S2 robustness PR5)
+
+**Scope**: `app/rms/sentry.py` (new, 127 lines), `app/rms/notify.py` (level-mapper wiring in `sentry_before_send`, +12 lines), `tests/test_sentry_level_mapping.py` (new, 453 lines, 35 tests).
+
+Adds the deterministic AppError -> Sentry level mapping the S2 plan called for. Before this PR, every AppError (including 4xx user-input ones like NotFound 404, ValidationError 422) would arrive at Sentry as `error`-level, which (a) polluted the operator's Sentry inbox with user-input noise and (b) paged on-call for things that aren't outages.
+
+Three pieces, one PR (behaviour-preserving for non-AppError paths):
+
+1. **`app/rms/sentry.py::sentry_level_for(exc)`** — pure function. AppError + `status_code >= 500` -> `"error"`, AppError + `status_code < 500` -> `"warning"`, anything else -> `"error"` (Sentry default). Lazy-imports `AppError` so the module stays dependency-free at import time (AGENTS.md rule 26 + the Sentry lazy-load contract locked by `test_sentry_lazy_import.py`).
+2. **`app/rms/notify.py::sentry_before_send`** — consults `sentry_level_for` via the Sentry `hint["exc_info"]` payload BEFORE the existing `level in ("error", "fatal")` filter, so 4xx AppErrors never trigger the Telegram mirror (C.1 contract preserved for 5xx server faults). Lazy import, wrapped in a defensive try/except that logs to stderr so a future bug in the mapper cannot brick the SDK pipeline.
+3. **`tests/test_sentry_level_mapping.py`** — 35 parametrized + non-parametrized cases:
+   - 11 base-class cases (BadRequest/ValidationError/NotFound/AlreadyExists/Conflict/Unauthenticated/Forbidden/RateLimited -> "warning"; DataIntegrityError/DependencyError/AppInternalError -> "error")
+   - 13 domain-specific subclass cases covering every entry in the S2 PR1 taxonomy table (RecipeValidationError, FiadoError, CashSessionError, ClosureError, ExpenseError, RefundError, EODClosedError, MenuNotFound -> "warning"; RecipeTreeError, LLMError, StorageError, TenantError, RollbackError -> "error")
+   - 4 wire cases through the live `sentry_before_send` (4xx relabel + 5xx relabel + 4xx-no-Telegram + 5xx-with-Telegram)
+   - 5 defensive cases (cause-chain, missing hint, non-AppError fallback, `__all__` surface, no-SDK-at-import)
+
+All 35 new + 19 existing sentry tests pass (`uv run rtk pytest tests/test_sentry_level_mapping.py tests/test_sentry_init.py tests/test_sentry_telegram_wiring.py tests/test_notify_telegram.py tests/test_sentry_lazy_import.py --no-cov` = 54 passed). Ruff check + format both pass.
+
+**Behaviour delta**:
+
+- Before: any `AppError` arriving at Sentry shows up as `error`; Telegram mirroring fires for every one of them (subject to 60s damping).
+- After: 4xx AppErrors arrive at Sentry as `warning`, no Telegram mirror — operator's phone doesn't buzz on every NotFound. 5xx AppErrors continue to arrive as `error` AND mirror to Telegram — on-call behaviour preserved for actual outages. Non-AppError exceptions (RuntimeError, KeyError, ValueError, ...) are untouched — Sentry's default `error` level still applies.
+
+**Acceptance checked**: parametrize covers all 13 AppError subclasses, level table is mapped correctly (4xx -> warning, 5xx -> error), wire is verified end-to-end, no existing tests regress.
+
 ## 2026-10-13 — test(s1-batch4): parametrize bank_list + shopping_list_index (CC 21 each, D-grade → +13 cases, 30%→33%)
 
 **Scope**: `tests/test_d_grade_helpers_parametrized.py` (new, ~550 lines).
