@@ -20,29 +20,6 @@
 {% block title %}Producción · {{ for_date }}{% endblock %}
 {% block content %}
 <div class="kitchen-page">
-{% if template_nudge %}
-<details class="kitchen-nudge">
-  <summary>Plantilla semanal</summary>
-  <div>
-    {% if has_weekly_template %}Tu plantilla semanal está guardada. Cargala en el plan de hoy con un click — así
-    se ignoran los promedios 14d para los productos que tengan override.
-    {% else %}Todavía no guardaste un plan semanal para este día — el plan se arma con
-    el promedio de ventas. Después de una semana de ventas, andá a
-    <a href="/produccion?view=week">vista semana → Guardar como plan semanal</a>
-    y el sistema usará TU plan en vez del promedio.{% endif %}
-  </div>
-  {% if has_weekly_template %}
-  <form method="post" action="/produccion/template/load-day" class="js-confirm-form"
-        data-confirm-title="¿Cargar plan desde plantilla?"
-        data-confirm-body="Se creará un override por cada producto de la plantilla semanal que aún no esté cargado para hoy.">
-    <input type="hidden" name="for_date" value="{{ for_date.isoformat() }}">
-    <button type="submit" class="btn btn-sm">
-      Cargar plan desde plantilla semanal
-    </button>
-  </form>
-  {% endif %}
-</details>
-{% endif %}
 
 {# ════════════════════════════════════════════════════════════════════
    PAGE ROOF — title + view tabs side-by-side (Bug 3 fix).
@@ -113,13 +90,9 @@
     v2
   </span>
 
-  {% if view == 'day' and plan_rows_view %}
-  <a href="/produccion/print?for_date={{ for_date }}" class="btn btn-primary"
-     title="Imprimí el plan de hoy para el turno">Imprimir</a>
-  {% endif %}
-  <details class="kitchen-more">
+  <details class="more-menu">
     <summary>Más</summary>
-    <div class="kitchen-more__menu" role="menu">
+    <div class="more-menu__panel" role="menu">
   <a href="/produccion/manana" role="menuitem">Producción de mañana</a>
   <a href="/produccion/accuracy" role="menuitem" title="Precisión del plan vs. producción real">Precisión histórica</a>
   <a href="/produccion/print?for_date={{ for_date }}" role="menuitem" title="Imprimí el plan de hoy para el turno">Imprimir</a>
@@ -162,10 +135,51 @@
   </a>
   {# T-2026-10-04 (P2): link to the weekly ingredient prep sheet. #}
   <a href="/produccion/prep" role="menuitem" title="Plan de preparación semanal (ingredientes agregados)">Prep semanal</a>
+  <a href="/produccion/haccp?for_date={{ for_date }}" role="menuitem">Registro HACCP</a>
+  {% if template_nudge or has_weekly_template %}
+  <div class="more-menu__block">
+    <strong>Plantilla semanal</strong>
+    <p>
+      {% if has_weekly_template %}Tu plantilla semanal está guardada. Cargala en el plan de hoy con un click — así
+      se ignoran los promedios 14d para los productos que tengan override.
+      {% else %}Todavía no guardaste un plan semanal para este día — el plan se arma con
+      el promedio de ventas. Después de una semana de ventas, andá a
+      <a href="/produccion?view=week">vista semana → Guardar como plan semanal</a>
+      y el sistema usará TU plan en vez del promedio.{% endif %}
+    </p>
+    {% if has_weekly_template %}
+    <form method="post" action="/produccion/template/load-day" class="js-confirm-form"
+          data-confirm-title="¿Cargar plan desde plantilla?"
+          data-confirm-body="Se creará un override por cada producto de la plantilla semanal que aún no esté cargado para hoy.">
+      <input type="hidden" name="for_date" value="{{ for_date.isoformat() if for_date.isoformat is defined else for_date }}">
+      <button type="submit" class="btn btn-sm">
+        Cargar plan desde plantilla semanal
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+  <a href="/shopping-list" role="menuitem">Lista de compras</a>
+  <a href="/reorder" role="menuitem">Reponer</a>
+  {% if plan is defined and plan and plan.lines %}
+  <form method="post" action="/shopping-list/from-production-plan"
+        data-testid="send-to-shopping-list-form">
+    <input type="hidden" name="for_date" value="{{ plan.for_date.isoformat() }}"/>
+    <button type="submit" title="Materializa los faltantes de hoy en la lista de compras">
+      Enviar faltantes a lista de compras
+    </button>
+  </form>
+  {% endif %}
     </div>
   </details>
   </div>
 </div>
+
+{% if view == 'day' and haccp_alert == 'warning' %}
+<p class="prod-haccp-warn" role="status">
+  HACCP fuera de rango{% if haccp_latest %} — {{ haccp_latest.location }} · {{ "%.1f"|format(haccp_latest.temperature_c) }} °C{% endif %}
+</p>
+{% endif %}
 
 {# PRODUCCION-V3 Phase 3 (post-screenshot fix): hero stats (4 cards:
    Productos / Lote / Pedidos / Confianza). Rendered OUTSIDE the
@@ -270,7 +284,7 @@
          data-critical-count="{{ ns_total_critical }}"
          data-warning-count="{{ ns_total_warning }}"
          data-info-count="{{ ns_total_info }}"
-         {% if ns_total_critical > 0 or haccp_alert == 'warning' %}open{% endif %}>
+         {% if ns_total_critical > 0 %}open{% endif %}>
   <summary class="notifications-bundle__summary"
            aria-label="Notificaciones del día">
     <span class="notifications-bundle__icon" aria-hidden="true">
@@ -851,29 +865,15 @@
     <table class="table is-hoverable align-middle production-table" data-difficulty-active="{{ diff }}">
       <thead>
         <tr>
-          <th style="width: 2.5rem;"><span class="th-sort th-sort--readonly" aria-label="Marcar hecho">Listo</span></th>
-          <th>{{ m.sort_th("Producto", "product", current_sort, current_dir) }}</th>
-          {# 2026-10-07: Dificultad is its own sortable column (was inline
-             in the Producto cell). #}
-          <th class="num" style="width: 5rem;">{{ m.sort_th("Dificultad", "difficulty", current_sort, current_dir) }}</th>
-          <th class="num" style="width: 5.5rem;">{{ m.sort_th("Demanda", "demand", current_sort, current_dir) }}</th>
-          <th class="num" style="width: 4.5rem;">{{ m.sort_th("Tandas", "meta", current_sort, current_dir) }}</th>
-          <th class="num" style="width: 3.5rem;">{{ m.sort_th("Pedidos", "pedidos", current_sort, current_dir) }}</th>
-          <th class="num" style="width: 4.5rem;">{{ m.sort_th("Lote final", "lote", current_sort, current_dir) }}</th>
-          <th class="num" style="width: 7rem;">{{ m.sort_th("Hecho", "hecho", current_sort, current_dir) }}</th>
-          {# Origen — short label, single tooltip link explains all bands. The
-             cell now shows the numeric score (e.g. "67%") not a "?". #}
-          <th style="width: 3.5rem;">
-            <span class="th-sort th-sort--readonly" title="Origen (mouseover para detalle)" aria-label="Origen">Origen</span>
-            <a href="#confidence-modal" data-confidence-help class="confidence-help" title="¿Qué significa el porcentaje?">?</a>
+          <th>
+            <div class="prod-day__l1">
+              <span class="th-sort th-sort--readonly" aria-label="Marcar hecho">Listo</span>
+              <span>{{ m.sort_th("Producto", "product", current_sort, current_dir) }}</span>
+              <span class="num" title="Lote final">{{ m.sort_th("Lote", "lote", current_sort, current_dir) }}</span>
+              <span class="num">{{ m.sort_th("Hecho", "hecho", current_sort, current_dir) }}</span>
+              <span>Ver detalles</span>
+            </div>
           </th>
-          <th style="width: 6rem;">Receta</th>
-          {# T-2026-10-04 (C.5): inline cost/margin column (restored from a2f29b8e).
-             Hidden on print via .no-print. #}
-          <th class="num no-print" style="min-width: 7rem;" title="Costo total del lote (cost_per_unit × qty) y margen %">Costo / Margen</th>
-          <th class="num" style="width: 4.5rem;">{{ m.sort_th("Sobrante", "sobrante", current_sort, current_dir) }}</th>
-          {# Cierre — hidden on print. #}
-          <th class="no-print" style="width: 8rem;">{{ m.sort_th("Cierre", "closure", current_sort, current_dir) }}</th>
         </tr>
       </thead>
       <tbody>
@@ -885,225 +885,231 @@
             data-product-name="{{ r.product_name|e }}"
             data-difficulty="{{ r.recipe_difficulty or 0 }}"
             {% if r.is_ad_hoc %}data-ad-hoc="1"{% endif %}>
-          <td data-label="Listo">
-            <input type="checkbox" name="done_{{ r.product_id }}" value="1"
-                   class="shift-checkbox"
-                   {% if r.completed_qty > 0 %}checked{% endif %}
-                   onchange="toggleRowComplete(this)"
-                   aria-label="Marcar {{ r.product_name }} como hecho">
-          </td>
-          <td class="font-bold product-name" data-label="Producto">
-            {{ r.product_name }}
-            {% if r.is_ad_hoc %}<span class="badge badge-warning" title="Horneado no planeado">Extra</span>{% endif %}
-            {# T-2026-10-05 (B.3): fermentation reminder. Actionable
-               timing info, kept here intentionally. #}
-            {% if r.fermentation_reminder %}
-              {% set fr = r.fermentation_reminder %}
-              <span class="badge fermentation-pill"
-                    data-fermentation-minutes="{{ fr.fermentation_minutes }}"
-                    data-fermentation-start="{{ fr.start_at }}"
-                    title="Fermentar {{ fr.fermentation_hours }}h: empezar {{ fr.start_label }} ({{ 'ayer ' if fr.days_before > 0 else '' }}{{ fr.start_label }}) para que esté lista a las {{ fr.ready_label }} (inicio del turno).">
-                🍞 Fermentar {{ fr.fermentation_hours }}h — empezar {{ 'ayer ' if fr.days_before > 0 else '' }}{{ fr.start_label }}
-              </span>
-            {% endif %}
-          </td>
-          {# 2026-10-07 NEW column — Dificultad (stars 1-5) + C.6 allergen badge. #}
-          <td class="num" data-label="Dificultad">
-            {% if r.is_ad_hoc %}
-              <span class="text-muted">—</span>
-            {% else %}
-              {% if r.recipe_difficulty %}
-                <span class="difficulty-stars difficulty-badge difficulty-{{ r.recipe_difficulty }}"
-                      data-difficulty="{{ r.recipe_difficulty }}"
-                      title="Dificultad {{ r.recipe_difficulty }}/5"
-                      aria-label="Dificultad {{ r.recipe_difficulty }} de 5">
-                  {% for i in range(r.recipe_difficulty) %}★{% endfor %}{% for i in range(5 - r.recipe_difficulty) %}<span class="difficulty-star--off">★</span>{% endfor %}
-                </span>
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
-              {# T-2026-10-10 (audit #147, P1): allergen badge removed from
-                 the row body. Per the audit, the badge added visual noise
-                 on the production table without helping the cook — the
-                 receta/receta-detail page already shows the full allergen
-                 list. Keep r.recipe_allergens on the data row so any
-                 downstream tooltips can still surface them. #}
-            {% endif %}
-          </td>
-          <td class="num" data-label="Demanda">
-            {% set d_total = r.qty_demand_total | default(0) %}
-            {% if d_total > 0 %}
-              <strong>{{ "%.0f"|format(d_total) }}</strong>
-            {% else %}
-              <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-          <td class="num" data-label="Tandas">
-            {% if r.is_ad_hoc %}
-              <span class="text-muted">—</span>
-            {% else %}
-              {# C3: META visual hierarchy — big number = BATCH COUNT.
-                 Yield info moved to tooltip (cell stays scannable). #}
-              <div class="meta-cell"
-                   {% if r.batch_qty and r.batch_qty != 1 %}title="{{ r.qty_to_produce | int }} lote{{ '' if r.qty_to_produce | int == 1 else 's' }} × {{ r.batch_qty | int }}{{ r.batch_unit or 'und' }} = {{ (r.qty_to_produce * r.batch_qty) | int }} und"{% endif %}>
-                <span class="meta-cell__count">{{ "%.0f"|format(r.qty_to_produce) }}</span>
-                <span class="meta-cell__unit text-muted">lote{{ r.qty_to_produce | int != 1 and 's' or '' }}</span>
+          <td>
+            <div class="prod-day__l1">
+              <div data-label="Listo">
+                <input type="checkbox" name="done_{{ r.product_id }}" value="1"
+                       class="shift-checkbox"
+                       {% if r.completed_qty > 0 %}checked{% endif %}
+                       onchange="toggleRowComplete(this)"
+                       aria-label="Marcar {{ r.product_name }} como hecho">
               </div>
-            {% endif %}
-          </td>
-          <td class="num" data-label="Pedidos">
-            {% if r.pending_pedido_qty > 0 %}
-              <span class="badge badge-info pedido-qty" title="{{ "%.0f"|format(r.pending_pedido_qty) }} und comprometidas por pedidos para hoy">+{{ "%.0f"|format(r.pending_pedido_qty) }}</span>
-            {% else %}
-              <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-          <td class="num" data-label="Lote final">
-            {% set total_bake = (r.qty_to_produce or 0) + (r.pending_pedido_qty or 0) %}
-            {% if total_bake > 0 %}
-              <strong>{{ "%.0f"|format(total_bake) }}</strong>
-            {% else %}
-              <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-          <td class="num" data-label="Hecho">
-            {# T-2026-10-04 (P2, Tier-3-A): stepper buttons +/− around qty input.
-                 The cook can tap instead of typing. Client-side only;
-                 data-target-qty holds the row's planned qty for "mark all". #}
-            <div class="qty-stepper" data-target-qty="{{ r.qty_to_produce or 0 }}" data-product-id="{{ r.product_id }}">
-              <button type="button" class="step-btn step-down"
-                      data-step="down"
-                      aria-label="Restar 1 a {{ r.product_name }}"
-                      onclick="stepRow(this, -1)">
-                <svg class="icon" aria-hidden="true"><use href="#icon-minus"/></svg>
-              </button>
-              <input type="number" name="completed_{{ r.product_id }}"
-                     class="progress-input"
-                     value="{{ "%.1f"|format(r.completed_qty or 0) }}"
-                     min="0" step="0.5"
-                     style="width: 70px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
-                     aria-label="Cantidad hecha de {{ r.product_name }}">
-              <button type="button" class="step-btn step-up"
-                      data-step="up"
-                      aria-label="Sumar 1 a {{ r.product_name }}"
-                      onclick="stepRow(this, +1)">
-                <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-              </button>
+              <div class="font-bold product-name" data-label="Producto">
+                {{ r.product_name }}
+                {% if r.is_ad_hoc %}<span class="badge badge-warning" title="Horneado no planeado">Extra</span>{% endif %}
+                {# T-2026-10-05 (B.3): fermentation reminder. Actionable
+                   timing info, kept here intentionally. #}
+                {% if r.fermentation_reminder %}
+                  {% set fr = r.fermentation_reminder %}
+                  <span class="badge fermentation-pill"
+                        data-fermentation-minutes="{{ fr.fermentation_minutes }}"
+                        data-fermentation-start="{{ fr.start_at }}"
+                        title="Fermentar {{ fr.fermentation_hours }}h: empezar {{ fr.start_label }} ({{ 'ayer ' if fr.days_before > 0 else '' }}{{ fr.start_label }}) para que esté lista a las {{ fr.ready_label }} (inicio del turno).">
+                    🍞 Fermentar {{ fr.fermentation_hours }}h — empezar {{ 'ayer ' if fr.days_before > 0 else '' }}{{ fr.start_label }}
+                  </span>
+                {% endif %}
+              </div>
+              <div class="prod-day__lote num" data-label="Lote final">
+                {% set total_bake = (r.qty_to_produce or 0) + (r.pending_pedido_qty or 0) %}
+                {% if total_bake > 0 %}
+                  <strong>{{ "%.0f"|format(total_bake) }}</strong>
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+                {% if r.is_ad_hoc %}
+                  <span class="text-muted">—</span>
+                {% else %}
+                  {# C3: META visual hierarchy — big number = BATCH COUNT.
+                     Yield info stays in the tooltip. #}
+                  <div class="meta-cell"
+                       {% if r.batch_qty and r.batch_qty != 1 %}title="{{ r.qty_to_produce | int }} lote{{ '' if r.qty_to_produce | int == 1 else 's' }} × {{ r.batch_qty | int }}{{ r.batch_unit or 'und' }} = {{ (r.qty_to_produce * r.batch_qty) | int }} und"{% endif %}>
+                    <span class="meta-cell__count">{{ "%.0f"|format(r.qty_to_produce) }}</span>
+                    <span class="meta-cell__unit text-muted">lote{{ r.qty_to_produce | int != 1 and 's' or '' }}</span>
+                  </div>
+                {% endif %}
+              </div>
+              <div class="prod-day__hecho num" data-label="Hecho">
+                {# T-2026-10-04 (P2, Tier-3-A): stepper buttons +/− around qty input.
+                     The cook can tap instead of typing. Client-side only;
+                     data-target-qty holds the row's planned qty for "mark all". #}
+                <div class="qty-stepper" data-target-qty="{{ r.qty_to_produce or 0 }}" data-product-id="{{ r.product_id }}">
+                  <button type="button" class="step-btn step-down"
+                          data-step="down"
+                          aria-label="Restar 1 a {{ r.product_name }}"
+                          onclick="stepRow(this, -1)">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-minus"/></svg>
+                  </button>
+                  <input type="number" name="completed_{{ r.product_id }}"
+                         class="progress-input"
+                         value="{{ "%.1f"|format(r.completed_qty or 0) }}"
+                         min="0" step="0.5"
+                         style="width: 70px; padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: 4px;"
+                         aria-label="Cantidad hecha de {{ r.product_name }}">
+                  <button type="button" class="step-btn step-up"
+                          data-step="up"
+                          aria-label="Sumar 1 a {{ r.product_name }}"
+                          onclick="stepRow(this, +1)">
+                    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+                  </button>
+                </div>
+              </div>
+              <details class="row-meta-details prod-day__details">
+                <summary>Ver detalles</summary>
+                <div class="prod-day__panel">
+                  <div class="prod-day__sorts">
+                    {{ m.sort_th("Dificultad", "difficulty", current_sort, current_dir) }}
+                    {{ m.sort_th("Demanda", "demand", current_sort, current_dir) }}
+                    {{ m.sort_th("Tandas", "meta", current_sort, current_dir) }}
+                    {{ m.sort_th("Pedidos", "pedidos", current_sort, current_dir) }}
+                    {{ m.sort_th("Sobrante", "sobrante", current_sort, current_dir) }}
+                    {{ m.sort_th("Cierre", "closure", current_sort, current_dir) }}
+                  </div>
+                  <div class="prod-day__field" data-label="Dificultad">
+                    <span class="prod-day__label">Dificultad</span>
+                    {% if r.is_ad_hoc %}
+                      <span class="text-muted">—</span>
+                    {% else %}
+                      {% if r.recipe_difficulty %}
+                        <span class="difficulty-stars difficulty-badge difficulty-{{ r.recipe_difficulty }}"
+                              data-difficulty="{{ r.recipe_difficulty }}"
+                              title="Dificultad {{ r.recipe_difficulty }}/5"
+                              aria-label="Dificultad {{ r.recipe_difficulty }} de 5">
+                          {% for i in range(r.recipe_difficulty) %}★{% endfor %}{% for i in range(5 - r.recipe_difficulty) %}<span class="difficulty-star--off">★</span>{% endfor %}
+                        </span>
+                      {% else %}
+                        <span class="text-muted">—</span>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                  <div class="prod-day__field" data-label="Demanda">
+                    <span class="prod-day__label">Demanda</span>
+                    {% set d_total = r.qty_demand_total | default(0) %}
+                    {% if d_total > 0 %}
+                      <strong>{{ "%.0f"|format(d_total) }}</strong>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </div>
+                  <div class="prod-day__field" data-label="Pedidos">
+                    <span class="prod-day__label">Pedidos</span>
+                    {% if r.pending_pedido_qty > 0 %}
+                      <span class="badge badge-info pedido-qty" title="{{ "%.0f"|format(r.pending_pedido_qty) }} und comprometidas por pedidos para hoy">+{{ "%.0f"|format(r.pending_pedido_qty) }}</span>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </div>
+                  <div class="prod-day__field" data-label="Origen">
+                    <span class="prod-day__label">Origen
+                      <a href="#confidence-modal" data-confidence-help class="confidence-help" title="¿Qué significa el porcentaje?">?</a>
+                    </span>
+                    {% set bucket = r.source_bucket | default('historial') %}
+                    <span class="source-dot source-dot--{{ bucket }}"
+                          title="{{ source_buckets[bucket] }}"
+                          aria-label="{{ source_buckets[bucket] }}"></span>
+                    {% if not r.is_ad_hoc %}
+                      <span class="confidence-band__score confidence-band__score--{{ r.confidence_band }}"
+                            title="Confianza del cálculo: {{ r.confidence_pct }}%. Bajo = se queda cerca de la meta; Medio = puede variar ±10%; Alto = conviene revisar">{{ r.confidence_pct }}%</span>
+                    {% else %}
+                      <span class="confidence-band__score confidence-band__score--manual"
+                            title="Producto manual: no hay cálculo automático. Marcá la cantidad a hornear a ojo.">a ojo</span>
+                    {% endif %}
+                  </div>
+                  <div class="prod-day__field" data-label="Receta">
+                    <span class="prod-day__label">Receta</span>
+                    {% if r.recipe_id %}
+                    <a href="/recetas/{{ r.recipe_id }}" class="btn btn-sm">Ver</a>
+                    {% else %}
+                    <span class="text-muted">—</span>
+                    {% endif %}
+                    <button type="button" class="btn btn-sm btn-ghost"
+                            data-quick-merma
+                            data-recipe-id="{{ r.recipe_id or '' }}"
+                            data-product-name="{{ r.product_name }}"
+                            onclick="openQuickMerma(this)"
+                            title="Registrar merma para {{ r.product_name }}">
+                      🔥
+                    </button>
+                  </div>
+                  <div class="num no-print" data-label="Costo / Margen">
+                    <span class="prod-day__label">Costo / Margen</span>
+                    {% if r.cost_per_unit_gs and r.cost_per_unit_gs > 0 and r.qty_to_produce > 0 %}
+                      {% set total_cost = r.cost_per_unit_gs * r.qty_to_produce %}
+                      {% if r.retail_gs and r.retail_gs > 0 %}
+                        {% set margin_pct = ((r.retail_gs - r.cost_per_unit_gs) / r.retail_gs * 100) | int %}
+                        <span class="cost-line"
+                              data-cost="{{ total_cost }}"
+                              data-margin="{{ margin_pct }}"
+                              title="Costo por unidad: Gs {{ '{:,}'.format(r.cost_per_unit_gs) }} · Retail: Gs {{ '{:,}'.format(r.retail_gs) }}">
+                          <strong>Gs {{ '{:,}'.format(total_cost) }}</strong>
+                          <small class="text-muted margin-pct margin-{% if margin_pct >= 40 %}good{% elif margin_pct >= 20 %}ok{% else %}low{% endif %}"
+                                 style="display: block; font-size: var(--text-xs);">
+                            {{ margin_pct }}% margen
+                          </small>
+                        </span>
+                      {% else %}
+                        <span class="cost-line" data-cost="{{ total_cost }}" title="Sin precio retail configurado">
+                          <strong>Gs {{ '{:,}'.format(total_cost) }}</strong>
+                          <small class="text-muted" style="display: block; font-size: var(--text-xs);">sin retail</small>
+                        </span>
+                      {% endif %}
+                    {% elif r.is_ad_hoc %}
+                      <span class="text-muted">—</span>
+                    {% else %}
+                      <span class="text-muted">sin precio</span>
+                    {% endif %}
+                  </div>
+                  <div class="num prod-day__field" data-label="Sobrante">
+                    <span class="prod-day__label">Sobrante</span>
+                    {% if r.batch_surplus_qty is not none %}
+                      {% if r.batch_surplus_qty == 0 %}
+                        <span class="text-muted" title="Lote exacto (sin sobrante)">✓</span>
+                      {% else %}
+                        {% set tier = "tier-high" if r.batch_surplus_pct > 100 else ("tier-med" if r.batch_surplus_pct > 20 else "tier-low") %}
+                        {% set boxes = "▪▪▪▪" if r.batch_surplus_pct > 100 else ("▪▪▪" if r.batch_surplus_pct > 50 else ("▪▪" if r.batch_surplus_pct > 20 else "▪")) %}
+                        <span class="surplus-pill surplus-{{ tier }}"
+                              title="{{ r.batch_surplus_qty | int }} und extra ({{ r.batch_surplus_pct }}% sobre la demanda)">
+                          <span class="surplus-pill__boxes" aria-hidden="true">{{ boxes }}</span>
+                          <span class="surplus-pill__num">+{{ r.batch_surplus_qty | int }}</span>
+                        </span>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </div>
+                  <div class="num no-print closure-cell prod-day__field" data-label="Cierre">
+                    <span class="prod-day__label">Cierre</span>
+                    {% set cs = r.closure_status | default('open') %}
+                    {% if cs == 'done' %}
+                      <span class="closure-pill closure-done" title="Cerrado como hecho. {{ r.closure_notes or '' }}">✅</span>
+                      <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                              data-action="reopen-day"
+                              data-product-id="{{ r.product_id }}"
+                              data-product-name="{{ r.product_name }}"
+                              title="Reabrir este producto (corrección de cierre)">
+                        Reabrir
+                      </button>
+                    {% elif cs == 'cancelled' %}
+                      <span class="closure-pill closure-cancelled" title="Cerrado como no-horneado. {{ r.closure_notes or '' }}">⊘</span>
+                      <button type="button" class="btn btn-ghost btn-sm closure-btn"
+                              data-action="reopen-day"
+                              data-product-id="{{ r.product_id }}"
+                              data-product-name="{{ r.product_name }}">
+                        Reabrir
+                      </button>
+                    {% else %}
+                      <button type="button" class="btn btn-primary btn-sm closure-btn"
+                              data-action="close-day"
+                              data-product-id="{{ r.product_id }}"
+                              data-product-name="{{ r.product_name }}"
+                              data-completed-qty="{{ r.completed_qty or 0 }}"
+                              title="Marcar este producto como cerrado para el turno">
+                        Cerrar turno
+                      </button>
+                    {% endif %}
+                  </div>
+                </div>
+              </details>
             </div>
-          </td>
-          {# 2026-10-07: compact origen — colored dot + title (no long text). #}
-          <td data-label="Origen">
-            {% set bucket = r.source_bucket | default('historial') %}
-            <span class="source-dot source-dot--{{ bucket }}"
-                  title="{{ source_buckets[bucket] }}"
-                  aria-label="{{ source_buckets[bucket] }}"></span>
-            {% if not r.is_ad_hoc %}
-              <span class="confidence-band__score confidence-band__score--{{ r.confidence_band }}"
-                    title="Confianza del cálculo: {{ r.confidence_pct }}%. Bajo = se queda cerca de la meta; Medio = puede variar ±10%; Alto = conviene revisar">{{ r.confidence_pct }}%</span>
-            {% else %}
-              <span class="confidence-band__score confidence-band__score--manual"
-                    title="Producto manual: no hay cálculo automático. Marcá la cantidad a hornear a ojo.">a ojo</span>
-            {% endif %}
-          </td>
-          <td data-label="Receta">
-            {% if r.recipe_id %}
-            <a href="/recetas/{{ r.recipe_id }}" class="btn btn-sm">Ver</a>
-            {% else %}
-            <span class="text-muted">—</span>
-            {% endif %}
-            {# PROD-MERMA-1: per-row 🔥 Merma trigger (kept icon-only to
-               save column width). #}
-            <button type="button" class="btn btn-sm btn-ghost"
-                    data-quick-merma
-                    data-recipe-id="{{ r.recipe_id or '' }}"
-                    data-product-name="{{ r.product_name }}"
-                    onclick="openQuickMerma(this)"
-                    title="Registrar merma para {{ r.product_name }}"
-                    style="margin-left: var(--space-1);">
-              🔥
-            </button>
-          </td>
-          {# T-2026-10-04 (C.5): inline cost/margin cell (restored from a2f29b8e).
-             Total cost of the planned batch + margin %, hidden on print. #}
-          <td class="num no-print" data-label="Costo / Margen">
-            {% if r.cost_per_unit_gs and r.cost_per_unit_gs > 0 and r.qty_to_produce > 0 %}
-              {% set total_cost = r.cost_per_unit_gs * r.qty_to_produce %}
-              {% if r.retail_gs and r.retail_gs > 0 %}
-                {% set margin_pct = ((r.retail_gs - r.cost_per_unit_gs) / r.retail_gs * 100) | int %}
-                <span class="cost-line"
-                      data-cost="{{ total_cost }}"
-                      data-margin="{{ margin_pct }}"
-                      title="Costo por unidad: Gs {{ '{:,}'.format(r.cost_per_unit_gs) }} · Retail: Gs {{ '{:,}'.format(r.retail_gs) }}">
-                  <strong>Gs {{ '{:,}'.format(total_cost) }}</strong>
-                  <small class="text-muted margin-pct margin-{% if margin_pct >= 40 %}good{% elif margin_pct >= 20 %}ok{% else %}low{% endif %}"
-                         style="display: block; font-size: var(--text-xs);">
-                    {{ margin_pct }}% margen
-                  </small>
-                </span>
-              {% else %}
-                <span class="cost-line" data-cost="{{ total_cost }}" title="Sin precio retail configurado">
-                  <strong>Gs {{ '{:,}'.format(total_cost) }}</strong>
-                  <small class="text-muted" style="display: block; font-size: var(--text-xs);">sin retail</small>
-                </span>
-              {% endif %}
-            {% elif r.is_ad_hoc %}
-              <span class="text-muted">—</span>
-            {% else %}
-              <span class="text-muted">sin precio</span>
-            {% endif %}
-          </td>
-          {# T-2026-10-05 (B.9): batch-surplus cell.
-             Tiers (2026-10-07 round-2): gray for tolerable (≤20%),
-             amber for moderate (20-100%), orange for excessive (>100%).
-             Red is reserved for system errors. Adds a stacked-box icon
-             for at-a-glance density scan. #}
-          <td class="num" data-label="Sobrante">
-            {% if r.batch_surplus_qty is not none %}
-              {% if r.batch_surplus_qty == 0 %}
-                <span class="text-muted" title="Lote exacto (sin sobrante)">✓</span>
-              {% else %}
-                {% set tier = "tier-high" if r.batch_surplus_pct > 100 else ("tier-med" if r.batch_surplus_pct > 20 else "tier-low") %}
-                {% set boxes = "▪▪▪▪" if r.batch_surplus_pct > 100 else ("▪▪▪" if r.batch_surplus_pct > 50 else ("▪▪" if r.batch_surplus_pct > 20 else "▪")) %}
-                <span class="surplus-pill surplus-{{ tier }}"
-                      title="{{ r.batch_surplus_qty | int }} und extra ({{ r.batch_surplus_pct }}% sobre la demanda)">
-                  <span class="surplus-pill__boxes" aria-hidden="true">{{ boxes }}</span>
-                  <span class="surplus-pill__num">+{{ r.batch_surplus_qty | int }}</span>
-                </span>
-              {% endif %}
-            {% else %}
-              <span class="text-muted">—</span>
-            {% endif %}
-          </td>
-          {# PRODUCCION-V2 Fase 2: per-row "Cerrar turno" button. Hidden on print. #}
-          <td class="num no-print closure-cell" data-label="Cierre">
-            {% set cs = r.closure_status | default('open') %}
-            {% if cs == 'done' %}
-              <span class="closure-pill closure-done" title="Cerrado como hecho. {{ r.closure_notes or '' }}">✅</span>
-              <button type="button" class="btn btn-ghost btn-sm closure-btn"
-                      data-action="reopen-day"
-                      data-product-id="{{ r.product_id }}"
-                      data-product-name="{{ r.product_name }}"
-                      title="Reabrir este producto (corrección de cierre)">
-                Reabrir
-              </button>
-            {% elif cs == 'cancelled' %}
-              <span class="closure-pill closure-cancelled" title="Cerrado como no-horneado. {{ r.closure_notes or '' }}">⊘</span>
-              <button type="button" class="btn btn-ghost btn-sm closure-btn"
-                      data-action="reopen-day"
-                      data-product-id="{{ r.product_id }}"
-                      data-product-name="{{ r.product_name }}">
-                Reabrir
-              </button>
-            {% else %}
-              <button type="button" class="btn btn-primary btn-sm closure-btn"
-                      data-action="close-day"
-                      data-product-id="{{ r.product_id }}"
-                      data-product-name="{{ r.product_name }}"
-                      data-completed-qty="{{ r.completed_qty or 0 }}"
-                      title="Marcar este producto como cerrado para el turno">
-                Cerrar turno
-              </button>
-            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -1713,26 +1719,6 @@
        class="btn btn-primary btn-sm"
        title="Recetas con sus porciones/ingredientes (para pesar)">
       🍰 Por receta (pesar)
-    </a>
-    <form method="post" action="/shopping-list/from-production-plan"
-          class="d-inline"
-          data-testid="send-to-shopping-list-form">
-      <input type="hidden" name="for_date" value="{{ plan.for_date.isoformat() }}"/>
-      <button type="submit" class="btn btn-secondary btn-sm"
-              title="Materializa los faltantes de hoy en la lista de compras">
-        📤 Enviar faltantes a lista de compras
-      </button>
-    </form>
-    <a href="/shopping-list"
-       class="btn btn-ghost btn-sm"
-       title="Lista de compras (lo que falta por comprar)">
-      🛒 Lista de compras
-    </a>
-    <a href="/reorder"
-       class="btn btn-ghost btn-sm"
-       title="Reponer stock de ingredientes bajo mínimo">
-      <svg class="icon" aria-hidden="true"><use href="#icon-reorder"/></svg>
-      Reponer
     </a>
   </div>
 </section>

@@ -8,7 +8,10 @@
 {% block content %}
 <header class="page-header">
   <div class="page-header-row">
-    <h1>Productos y precios</h1>
+    <div>
+      <h1>Productos y precios</h1>
+      <p class="page-desc">Qué es, a cuánto se vende y si está disponible.</p>
+    </div>
     <div class="page-actions">
       <a href="/productos/nuevo" class="btn btn-primary">Nuevo producto</a>
       <details class="more-menu">
@@ -29,6 +32,9 @@
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar producto…"
          style="flex:1;min-width:180px;height:36px;" aria-label="Buscar producto">
 
+  <details class="reorder-menu">
+    <summary>Filtros</summary>
+    <div class="reorder-menu__panel" style="flex-direction:row;flex-wrap:wrap;align-items:center;gap:.5rem;min-width:22rem;">
   {# Tag filter #}
   <div class="mf-pop" data-mf="tag">
     <button type="button" class="mf-btn" aria-expanded="false">
@@ -75,6 +81,8 @@
       {% endfor %}
     </div>
   </div>
+    </div>
+  </details>
   <button type="submit" class="btn btn-primary h-control" >Filtrar</button>
   {% if q or has_recipe or margen_sel or disp_sel or tag_sel or category_sel %}
   <a href="/productos" class="btn h-control" >Limpiar todo</a>
@@ -131,124 +139,155 @@
 {{ ui.skeleton_section(id="products-table", variant="line", count=12, label="Cargando productos") }}
 <div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);" data-loaded-section="products-table">
 <div class="table-wrap">
-<table class="table is-hoverable is-striped mb-0"  id="products-table">
+<table class="table is-hoverable is-striped mb-0 catalog-list product-list" id="products-table">
   <thead>
     <tr>
-      <th class="col-checkbox"><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></th>
-      <th class="col-thumb"></th>
-      <th data-col="name" class="col-name">{{ m.sort_th("Nombre", "name", sort, dir) }}</th>
-      <th data-col="sku" class="col-sku">SKU</th>
-      <th data-col="portion" class="col-portion">Porción</th>
-      <th data-col="price" class="col-price num">{{ m.sort_th("Precio venta", "sale_price_gs", sort, dir) }}</th>
-      <th data-col="wholesale" class="col-wholesale num">Mayorista</th>
-      <th data-col="recipe" class="col-recipe">Receta</th>
-      <th data-col="cost" class="col-cost num">{{ m.sort_th("Costo", "cost_gs", sort, dir) }}</th>
-      <th data-col="margin" class="col-margin num">{{ m.sort_th("Margen", "margin_gs", sort, dir) }}</th>
-      <th data-col="marginpct" class="col-marginpct num">Margen %</th>
-      <th data-col="prime-cost" class="col-prime-cost num">Prime Cost</th>
-      <th data-col="prime-pct" class="col-prime-pct num">% Costo</th>
-      <th data-col="cost-updated" class="col-cost-updated" title="Hace cuánto cambió el precio de algún ingrediente de la receta">Costo act.</th>
-      <th data-col="available" class="col-available">Disp.</th>
-      <th data-col="produced" class="col-produced num" title="Total horneado histórico (cierres de turno en /produccion). Últimos 30 días entre paréntesis.">Producido</th>
-      <th class="col-actions actions"></th>
+      <th>
+        <div class="catalog-list__l1">
+          <span class="col-checkbox"><input type="checkbox" id="select-all" aria-label="Seleccionar todos"></span>
+          <span data-col="name" class="catalog-list__name col-name">{{ m.sort_th("Nombre", "name", sort, dir) }}</span>
+          <span data-col="price" class="catalog-list__price num col-price">{{ m.sort_th("Precio venta", "sale_price_gs", sort, dir) }}</span>
+          <span data-col="available" class="catalog-list__disp col-available">Disp.</span>
+          <span class="catalog-list__edit">Editar</span>
+          <span class="catalog-list__details">Ver detalles</span>
+        </div>
+      </th>
     </tr>
   </thead>
   <tbody>
     {% for p in products %}
     <tr data-id="{{ p.id }}" class="{% if p.is_dead %}row-dead{% endif %}">
-      <td class="col-checkbox"><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ fmt.entity_name(p) }}"></td>
-      <td class="col-thumb">{% if p.image_url %}<img src="{{ p.image_url }}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;" alt="" loading="lazy">{% else %}<span style="display:inline-block;width:32px;height:32px;border-radius:4px;background:var(--color-surface-subtle);text-align:center;line-height:32px;color:var(--color-text-muted);font-size:10px;">—</span>{% endif %}</td>
-      <td class="col-name">
-        <strong>{{ fmt.entity_name(p) }}</strong>
-        {% if p.is_dead %}{{ ui.status_pill("Sin ventas", sev="warn") }}{% endif %}
-        {% if p.category %}{{ t.category_pill(p.category) }}{% endif %}
-        {% if p.tags %}
-          <div class="tag-pill-row">
-            {{ t.tag_pills(p.tags) }}
+      <td>
+        <div class="catalog-list__l1">
+          <span class="col-checkbox"><input type="checkbox" name="selected" value="{{ p.id }}" aria-label="Seleccionar {{ fmt.entity_name(p) }}"></span>
+          <div class="catalog-list__name col-name" data-col="name">
+            <div style="display:flex;gap:.5rem;align-items:center;">
+              <span class="col-thumb">{% if p.image_url %}<img src="{{ p.image_url }}" style="width:32px;height:32px;object-fit:cover;border-radius:4px;" alt="" loading="lazy">{% else %}<span style="display:inline-block;width:32px;height:32px;border-radius:4px;background:var(--color-surface-subtle);text-align:center;line-height:32px;color:var(--color-text-muted);font-size:10px;">—</span>{% endif %}</span>
+              <div>
+                <strong>{{ fmt.entity_name(p) }}</strong>
+                {% if p.is_dead %}{{ ui.status_pill("Sin ventas", sev="warn") }}{% endif %}
+                {% if p.category %}{{ t.category_pill(p.category) }}{% endif %}
+                {% if p.tags %}
+                  <div class="tag-pill-row">
+                    {{ t.tag_pills(p.tags) }}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
           </div>
-        {% endif %}
-      </td>
-      <td class="col-sku">
-        {% if p.sku %}
-          <code class="sku-field">{{ p.sku }}</code>
-          <button type="button" class="btn btn-xs btn-ghost" onclick="copyToClipboard('{{ p.sku }}')" title="Copiar SKU" aria-label="Copiar SKU">
-            <svg class="icon" aria-hidden="true" style="width:12px;height:12px"><use href="#icon-copy"/></svg>
-          </button>
-        {% else %}<em class="muted">sin SKU</em>{% endif %}
-      </td>
-      <td class="col-portion">{{ p.portion_label }}</td>
-      <td class="num col-price">{{ m.gs_full(p.sale_price_gs) }}</td>
-      <td class="num col-wholesale">{% if p.mayorista_price_gs is not none %}{{ m.gs(p.mayorista_price_gs) }}{% endif %}</td>
-      <td class="col-recipe">{% if p.recipe_name %}<a href="/recetas/{{ p.recipe_id }}" class="text-link">{{ p.recipe_name }}</a>{% else %}<em class="muted">sin receta</em>{% endif %}</td>
-      <td class="num col-cost">{% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(p.cost_gs) }}{% endif %}</td>
-      <td class="num col-margin">{% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{% if p.margin_gs < 0 %}<span class="badge badge-danger">{{ m.gs(p.margin_gs) }}</span>{% elif p.margin_ratio is not none and p.margin_ratio < 0.4 %}<span class="badge badge-warn" title="Margen bajo: menos del 40%">{{ m.gs(p.margin_gs) }}</span>{% else %}{{ m.gs(p.margin_gs) }}{% endif %}{% endif %}</td>
-      <td class="num col-marginpct">{% if p.margin_ratio is none %}<em class="muted">—</em>{% elif p.margin_gs is not none and p.margin_gs < 0 %}<span class="badge badge-danger" title="Vendés por debajo del costo">{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}</span>{% else %}{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}{% endif %}</td>
-      <td class="num col-prime-cost">
-        {% if p.prime_cost_gs is none %}<em class="muted">falta datos</em>{% else %}{{ m.gs(p.prime_cost_gs) }}{% endif %}
-      </td>
-      <td class="num col-prime-pct">
-        {% if p.prime_cost_pct is none %}<em class="muted">—</em>{% else %}
-          <span class="{% if p.prime_cost_pct < 50 %}badge badge-ok{% elif p.prime_cost_pct < 70 %}badge-warn{% else %}badge-danger{% endif %}">
-            {{ "%.1f"|format(p.prime_cost_pct) }}%
-          </span>
-        {% endif %}
-      </td>
-      {# UI-V2: cost freshness — when an ingredient price last changed.
-         Stale (>90d) or never-computed costs get a visual nudge: the
-         sale price may be based on outdated input costs. #}
-      <td class="col-cost-updated">
-        {% if p.cost_updated_at is none %}
-          <span class="badge badge-muted" title="Sin precios de ingredientes cargados">sin datos</span>
-        {% else %}
-          {% set days_ago = ((now_utc - p.cost_updated_at).days) if now_utc else 0 %}
-          {% if days_ago > 90 %}
-            <span class="badge badge-warn" title="Costo base con más de 90 días — revisá precios">{{ days_ago }}d</span>
-          {% elif days_ago > 30 %}
-            <span class="badge badge-muted" title="Costo base de hace {{ days_ago }} días">{{ days_ago }}d</span>
-          {% else %}
-            <span class="badge badge-ok" title="Costo actualizado hace {{ days_ago }} día(s)">{{ days_ago }}d</span>
-          {% endif %}
-        {% endif %}
-      </td>
-      <td class="col-available">
-        {% if p.is_available %}
-          {{ ui.status_pill("Sí", sev="ok") }}
-        {% else %}
-          <span class="badge badge-muted">No</span>
-        {% endif %}
-      </td>
-      {# T-2026-10-05: lifetime produced (from /produccion close-day records).
-         Shows "total (30d)" — e.g. "144 (36)" — 0 renders muted. #}
-      <td class="num col-produced">
-        {% if p.produced_last_date %}
-          <strong>{{ "%.0f"|format(p.produced_total) }}</strong>
-          <small class="text-muted">({{ "%.0f"|format(p.produced_last_30d) }})</small>
-          <br><small class="text-muted" title="Última producción registrada">{{ p.produced_last_date }}</small>
-        {% else %}
-          <span class="badge badge-muted" title="Sin cierres de turno registrados">—</span>
-        {% endif %}
-      </td>
-      <td class="actions col-actions">
-        {# P3: ⭐ favorite toggle — pins the product to the ventas POS
-           quick-sell grid. POST + redirect keeps filters/sort/page. #}
-        <form method="post" action="/productos/{{ p.id }}/favorito" class="fav-toggle-form d-inline" >
-          <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-          <button type="submit"
-                  class="btn btn-sm btn-ghost fav-star{% if p["is_favorite"] %} is-fav{% endif %}"
-                  aria-pressed="{{ 'true' if p["is_favorite"] else 'false' }}"
-                  aria-label="{{ 'Quitar de favoritos' if p.is_favorite else 'Marcar como favorito' }}: {{ fmt.entity_name(p) }}"
-                  title="{{ 'Quitar de favoritos' if p.is_favorite else 'Marcar como favorito' }}">
-            {{ '★' if p["is_favorite"] else '☆' }}
-          </button>
-        </form>
-        <a href="/productos/{{ p.id }}/editar" class="btn btn-sm btn-ghost">
-          <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
-          Editar
-        </a>
-        <a href="/productos/{{ p.id }}" class="btn btn-sm btn-ghost">
-          <svg class="icon" aria-hidden="true"><use href="#icon-eye"/></svg>
-          Ver
-        </a>
+          <div class="catalog-list__price num col-price" data-col="price">{{ m.gs_full(p.sale_price_gs) }}</div>
+          <div class="catalog-list__disp col-available" data-col="available">
+            {% if p.is_available %}
+              {{ ui.status_pill("Sí", sev="ok") }}
+            {% else %}
+              <span class="badge badge-muted">No</span>
+            {% endif %}
+          </div>
+          <div class="catalog-list__edit actions">
+            <a href="/productos/{{ p.id }}/editar" class="btn btn-sm btn-ghost">
+              <svg class="icon" aria-hidden="true"><use href="#icon-edit"/></svg>
+              Editar
+            </a>
+          </div>
+          <details class="row-meta-details catalog-list__details">
+            <summary>Ver detalles</summary>
+          <div class="inv-list__panel">
+            <div class="inv-list__sorts">
+              {{ m.sort_th("Costo", "cost_gs", sort, dir) }}
+              {{ m.sort_th("Margen", "margin_gs", sort, dir) }}
+            </div>
+            <div class="inv-list__field col-sku" data-col="sku">
+              <span class="inv-list__label">SKU</span>
+              {% if p.sku %}
+                <code class="sku-field">{{ p.sku }}</code>
+                <button type="button" class="btn btn-xs btn-ghost" onclick="copyToClipboard('{{ p.sku }}')" title="Copiar SKU" aria-label="Copiar SKU">
+                  <svg class="icon" aria-hidden="true" style="width:12px;height:12px"><use href="#icon-copy"/></svg>
+                </button>
+              {% else %}<em class="muted">sin SKU</em>{% endif %}
+            </div>
+            <div class="inv-list__field col-portion" data-col="portion">
+              <span class="inv-list__label">Porción</span>
+              {{ p.portion_label }}
+            </div>
+            <div class="inv-list__field col-wholesale" data-col="wholesale">
+              <span class="inv-list__label">Mayorista</span>
+              {% if p.mayorista_price_gs is not none %}{{ m.gs(p.mayorista_price_gs) }}{% else %}<em class="muted">—</em>{% endif %}
+            </div>
+            <div class="inv-list__field col-recipe" data-col="recipe">
+              <span class="inv-list__label">Receta</span>
+              {% if p.recipe_name %}<a href="/recetas/{{ p.recipe_id }}" class="text-link">{{ p.recipe_name }}</a>{% else %}<em class="muted">sin receta</em>{% endif %}
+            </div>
+            <div class="inv-list__field col-cost" data-col="cost">
+              <span class="inv-list__label">Costo</span>
+              {% if p.cost_gs is none %}<em class="muted">falta precio</em>{% else %}{{ m.gs(p.cost_gs) }}{% endif %}
+            </div>
+            <div class="inv-list__field col-margin" data-col="margin">
+              <span class="inv-list__label">Margen</span>
+              {% if p.margin_gs is none %}<em class="muted">—</em>{% else %}{% if p.margin_gs < 0 %}<span class="badge badge-danger">{{ m.gs(p.margin_gs) }}</span>{% elif p.margin_ratio is not none and p.margin_ratio < 0.4 %}<span class="badge badge-warn" title="Margen bajo: menos del 40%">{{ m.gs(p.margin_gs) }}</span>{% else %}{{ m.gs(p.margin_gs) }}{% endif %}{% endif %}
+            </div>
+            <div class="inv-list__field col-marginpct" data-col="marginpct">
+              <span class="inv-list__label">Margen %</span>
+              {% if p.margin_ratio is none %}<em class="muted">—</em>{% elif p.margin_gs is not none and p.margin_gs < 0 %}<span class="badge badge-danger" title="Vendés por debajo del costo">{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}</span>{% else %}{{ m.margin_pct(p.margin_gs, p.sale_price_gs) }}{% endif %}
+            </div>
+            <div class="inv-list__field col-prime-cost" data-col="prime-cost">
+              <span class="inv-list__label">Prime Cost</span>
+              {% if p.prime_cost_gs is none %}<em class="muted">falta datos</em>{% else %}{{ m.gs(p.prime_cost_gs) }}{% endif %}
+            </div>
+            <div class="inv-list__field col-prime-pct" data-col="prime-pct">
+              <span class="inv-list__label">% Costo</span>
+              {% if p.prime_cost_pct is none %}<em class="muted">—</em>{% else %}
+                <span class="{% if p.prime_cost_pct < 50 %}badge badge-ok{% elif p.prime_cost_pct < 70 %}badge-warn{% else %}badge-danger{% endif %}">
+                  {{ "%.1f"|format(p.prime_cost_pct) }}%
+                </span>
+              {% endif %}
+            </div>
+            {# Cost freshness: stale (>90d) input prices nudge a price review. #}
+            <div class="inv-list__field col-cost-updated" data-col="cost-updated" title="Hace cuánto cambió el precio de algún ingrediente de la receta">
+              <span class="inv-list__label">Costo act.</span>
+              {% if p.cost_updated_at is none %}
+                <span class="badge badge-muted" title="Sin precios de ingredientes cargados">sin datos</span>
+              {% else %}
+                {% set days_ago = ((now_utc - p.cost_updated_at).days) if now_utc else 0 %}
+                {% if days_ago > 90 %}
+                  <span class="badge badge-warn" title="Costo base con más de 90 días — revisá precios">{{ days_ago }}d</span>
+                {% elif days_ago > 30 %}
+                  <span class="badge badge-muted" title="Costo base de hace {{ days_ago }} días">{{ days_ago }}d</span>
+                {% else %}
+                  <span class="badge badge-ok" title="Costo actualizado hace {{ days_ago }} día(s)">{{ days_ago }}d</span>
+                {% endif %}
+              {% endif %}
+            </div>
+            {# Lifetime produced from /produccion close-day records: total (30d). #}
+            <div class="inv-list__field col-produced" data-col="produced" title="Total horneado histórico (cierres de turno en /produccion). Últimos 30 días entre paréntesis.">
+              <span class="inv-list__label">Producido</span>
+              {% if p.produced_last_date %}
+                <strong>{{ "%.0f"|format(p.produced_total) }}</strong>
+                <small class="text-muted">({{ "%.0f"|format(p.produced_last_30d) }})</small>
+                <small class="text-muted" title="Última producción registrada">{{ p.produced_last_date }}</small>
+              {% else %}
+                <span class="badge badge-muted" title="Sin cierres de turno registrados">—</span>
+              {% endif %}
+            </div>
+            <div class="inv-list__actions">
+              {# Favorite pins the product on the ventas quick-sell grid. #}
+              <form method="post" action="/productos/{{ p.id }}/favorito" class="fav-toggle-form d-inline" >
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit"
+                        class="btn btn-sm btn-ghost fav-star{% if p["is_favorite"] %} is-fav{% endif %}"
+                        aria-pressed="{{ 'true' if p["is_favorite"] else 'false' }}"
+                        aria-label="{{ 'Quitar de favoritos' if p.is_favorite else 'Marcar como favorito' }}: {{ fmt.entity_name(p) }}"
+                        title="{{ 'Quitar de favoritos' if p.is_favorite else 'Marcar como favorito' }}">
+                  {{ '★' if p["is_favorite"] else '☆' }}
+                </button>
+              </form>
+              <a href="/productos/{{ p.id }}" class="btn btn-sm btn-ghost">
+                <svg class="icon" aria-hidden="true"><use href="#icon-eye"/></svg>
+                Ver
+              </a>
+            </div>
+          </div>
+        </details>
+        </div>
       </td>
     </tr>
     {% endfor %}
@@ -522,15 +561,35 @@ function toggleColumnVisibility() {
 
 function applyColumnVisibility() {
   var toggles = document.querySelectorAll('.col-toggle');
+  var hiddenL1 = {};
   toggles.forEach(function(toggle) {
     var col = toggle.dataset.col;
     var visible = toggle.checked;
+    if (col === 'name' || col === 'price' || col === 'available') {
+      hiddenL1[col] = !visible;
+    }
     document.querySelectorAll('[data-col="' + col + '"]').forEach(function(el) {
       el.style.display = visible ? '' : 'none';
     });
     document.querySelectorAll('.col-' + col).forEach(function(el) {
       el.style.display = visible ? '' : 'none';
     });
+  });
+  applyProductListTracks(hiddenL1);
+}
+
+/* Nombre, Precio, and Disponible are L1 tracks. Dropping the hidden
+   track lets Ver detalles (span 1 / -1) sit on the last remaining column.
+   Parked fields live inside the disclosure, so they do not change the grid. */
+function applyProductListTracks(hiddenL1) {
+  var tracks = ['2rem'];
+  if (!hiddenL1.name) tracks.push('minmax(12rem, 2.2fr)');
+  if (!hiddenL1.price) tracks.push('minmax(6.5rem, 0.9fr)');
+  if (!hiddenL1.available) tracks.push('auto');
+  tracks.push('auto', 'minmax(6.5rem, auto)');
+  document.querySelectorAll('.product-list').forEach(function(list) {
+    if (tracks.length === 6) list.style.removeProperty('--catalog-cols');
+    else list.style.setProperty('--catalog-cols', tracks.join(' '));
   });
 }
 

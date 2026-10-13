@@ -27,7 +27,7 @@ def test_produccion_manana_no_duplicate_pedidos_h2_regression():
     """Regression: produccion_manana.html must NOT have a duplicate
     <h2>Pedidos para mañana</h2> heading (the one in the <details>
     <summary> is the canonical heading)."""
-    src = TEMPLATES.joinpath("produccion_manana.html").read_text()
+    src = TEMPLATES.joinpath("produccion_manana.html").read_text(encoding="utf-8")
     code = re.sub(r"\{#.*?#\}", "", src, flags=re.S)
     target = "Pedidos para mañana"
     h2_count = sum(1 for line in code.split("\n") if target in line and "<h2" in line)
@@ -38,7 +38,7 @@ def test_produccion_manana_no_duplicate_pedidos_h2_regression():
 
 def test_inventario_bulk_fill_dialog_present():
     """`inventario.html` must have a bulk-fill confirmation dialog."""
-    src = TEMPLATES.joinpath("inventario.html").read_text()
+    src = TEMPLATES.joinpath("inventario.html").read_text(encoding="utf-8")
     assert "bulk-fill-title" in src, "Missing bulk-fill confirmation dialog"
     assert "Llenar todos los ingredientes" in src, "Missing bulk-fill dialog title"
     # The cancel/confirm buttons
@@ -48,7 +48,7 @@ def test_inventario_bulk_fill_dialog_present():
 
 def test_inventario_has_filter_toolbar():
     """`inventario.html` must have the search + categoria + estado + alérgeno + diet filter toolbar."""
-    src = TEMPLATES.joinpath("inventario.html").read_text()
+    src = TEMPLATES.joinpath("inventario.html").read_text(encoding="utf-8")
     assert 'name="q"' in src, "Missing search input"
     for f in ('name="categoria"', 'name="estado"', 'name="alergeno"', 'name="diet"'):
         assert f in src, f"Missing filter field: {f}"
@@ -56,21 +56,67 @@ def test_inventario_has_filter_toolbar():
 
 def test_inventario_low_stock_alerts():
     """`inventario.html` must show low-stock alerts with proper severity."""
-    src = TEMPLATES.joinpath("inventario.html").read_text()
+    src = TEMPLATES.joinpath("inventario.html").read_text(encoding="utf-8")
     assert "alert-danger" in src, "Missing critical-stock alert"
     assert "alert-warn" in src or "alert-warning" in src, "Missing low-stock warning"
 
 
 def test_inventario_empty_state():
     """`inventario.html` must show the `Agregá el primero` empty state when no ingredients."""
-    src = TEMPLATES.joinpath("inventario.html").read_text()
+    src = TEMPLATES.joinpath("inventario.html").read_text(encoding="utf-8")
     assert "Agregá el primero" in src, "Missing empty state CTA"
     assert "Harina" in src or "azúcar" in src, "Missing empty state examples"
 
 
+def test_inventario_row_has_ver_detalles_disclosure():
+    src = TEMPLATES.joinpath("inventario.html").read_text(encoding="utf-8")
+    assert "Ver detalles" in src
+    assert "Nuevo ingrediente" in src
+    assert src.find("Nuevo ingrediente") < src.find("Llenar a 2× mínimo")
+
+
+def test_produccion_day_plan_l1_and_mas():
+    """Day plan L1 is Listo / Producto / Lote / Hecho. Depth sits under Ver detalles and Más."""
+    src = TEMPLATES.joinpath("produccion.html").read_text(encoding="utf-8")
+    assert "Ver detalles" in src
+    assert "Plantilla semanal" in src
+    assert 'class="more-menu"' in src
+    for href in (
+        "/produccion/print",
+        "/produccion/export.csv",
+        "/produccion/copy-last-week",
+        "/produccion/template/load-day",
+        "/produccion/haccp",
+        "/produccion/prep",
+        "/produccion/manana",
+        "/produccion/accuracy",
+        "/shopping-list",
+    ):
+        assert href in src, href
+    assert 'name="done_' in src
+    assert 'name="completed_' in src
+    table = src.find('class="table is-hoverable align-middle')
+    assert table > 0
+    thead = src[src.find("<thead", table) : src.find("</thead>", table)]
+    for label in ("Listo", "Producto", "Lote", "Hecho", "Ver detalles"):
+        assert label in thead, label
+    for parked in (
+        "Dificultad",
+        "Demanda",
+        "Pedidos",
+        "Receta",
+        "Costo / Margen",
+        "Sobrante",
+        "Cierre",
+    ):
+        assert parked not in thead, parked
+        assert parked in src
+    assert "haccp_alert == 'warning'" in src or 'haccp_alert == "warning"' in src
+
+
 def test_produccion_dia_view_tabs():
     """`produccion.html` must have Día / Semana / Mes view switcher in the header."""
-    src = TEMPLATES.joinpath("produccion.html").read_text()
+    src = TEMPLATES.joinpath("produccion.html").read_text(encoding="utf-8")
     assert "view == 'day'" in src or 'view == "day"' in src, "Missing day view branch"
     # The switcher should be in the header (not in a buried drawer)
     # Quick check: 'Día' or 'Semana' or 'Mes' literal somewhere
@@ -80,14 +126,14 @@ def test_produccion_dia_view_tabs():
 
 def test_produccion_template_load_button():
     """`produccion.html` must have the 'Cargar plan desde plantilla semanal' button."""
-    src = TEMPLATES.joinpath("produccion.html").read_text()
+    src = TEMPLATES.joinpath("produccion.html").read_text(encoding="utf-8")
     assert "Cargar plan desde plantilla semanal" in src, "Missing template load button"
     assert "js-confirm-form" in src, "Template load should be a confirm form"
 
 
 def test_produccion_shift_badge():
     """`produccion.html` must show the shift (AM/PM) badge when the URL has shift=."""
-    src = TEMPLATES.joinpath("produccion.html").read_text()
+    src = TEMPLATES.joinpath("produccion.html").read_text(encoding="utf-8")
     assert "shift-badge" in src, "Missing shift badge"
     assert "Turno {{ shift }}" in src or "Turno AM" in src, "Missing Turno label"
 
@@ -109,7 +155,7 @@ def test_produccion_prep_page_exists():
 
 def test_produccion_horneado_extra_appears_below_table():
     """Ad-hoc horneado entries must appear in a separate section with the orange 'Extra' badge."""
-    src = TEMPLATES.joinpath("produccion.html").read_text()
+    src = TEMPLATES.joinpath("produccion.html").read_text(encoding="utf-8")
     assert "Horneado extra" in src, "Missing 'Horneado extra' section"
     assert "is_ad_hoc" in src, "Missing ad-hoc detection in the template"
     assert "badge-warning" in src, "Missing warning badge (orange) for ad-hoc entries"

@@ -58,8 +58,137 @@ Adds visual indicators, keyboard support, and URL-based state preservation.
             });
         });
 
+        // Parked columns are not L1 headers. Buttons with data-sort-control
+        // still sort the table by data-sort-field on each row.
+        bindParkedControls(table);
+
         // Restore sort state from URL
         restoreSortState(table);
+    }
+
+    function bindParkedControls(table) {
+        table.querySelectorAll('[data-sort-control]').forEach((control) => {
+            if (control.dataset.sortBound === '1') return;
+            if (!control.dataset.sortKey) return;
+            control.dataset.sortBound = '1';
+            control.classList.add('sortable-header');
+            control.setAttribute('aria-sort', 'none');
+
+            const indicator = document.createElement('span');
+            indicator.className = 'sort-indicator';
+            indicator.setAttribute('aria-hidden', 'true');
+            indicator.textContent = '↕';
+            control.appendChild(indicator);
+
+            control.addEventListener('click', (event) => {
+                event.preventDefault();
+                sortTableByKey(table, control.dataset.sortKey);
+            });
+        });
+    }
+
+    function parkedControls(table, sortKey) {
+        return Array.from(table.querySelectorAll('[data-sort-control]')).filter(
+            (control) => control.dataset.sortKey === sortKey
+        );
+    }
+
+    function clearSortChrome(table) {
+        const thead = table.tHead || table.querySelector('thead');
+        if (thead) {
+            thead.querySelectorAll('th').forEach((header) => {
+                header.setAttribute('aria-sort', 'none');
+                header.classList.remove('sort-asc', 'sort-desc');
+            });
+        }
+        table.querySelectorAll('[data-sort-control]').forEach((control) => {
+            control.setAttribute('aria-sort', 'none');
+            control.classList.remove('sort-asc', 'sort-desc');
+        });
+    }
+
+    function rememberOriginalOrder(rows) {
+        rows.forEach((row, idx) => {
+            if (!row.dataset.originalIndex) {
+                row.dataset.originalIndex = idx;
+            }
+        });
+    }
+
+    function restoreOriginalOrder(tbody) {
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rememberOriginalOrder(rows);
+        rows.sort((a, b) => {
+            const aIdx = parseInt(a.dataset.originalIndex || '0', 10);
+            const bIdx = parseInt(b.dataset.originalIndex || '0', 10);
+            return aIdx - bIdx;
+        });
+        rows.forEach((row) => tbody.appendChild(row));
+    }
+
+    function fieldValue(row, sortKey) {
+        const fields = row.querySelectorAll('[data-sort-field]');
+        for (let i = 0; i < fields.length; i++) {
+            if (fields[i].dataset.sortField === sortKey) {
+                return getCellValue(fields[i]);
+            }
+        }
+        return '';
+    }
+
+    function compareSortValues(aValue, bValue, direction) {
+        const aNum = parseFloat(aValue);
+        const bNum = parseFloat(bValue);
+        if (!isNaN(aNum) && !isNaN(bNum)) {
+            aValue = aNum;
+            bValue = bNum;
+        }
+        if (aValue < bValue) return direction === SORT_ASC ? -1 : 1;
+        if (aValue > bValue) return direction === SORT_ASC ? 1 : -1;
+        return 0;
+    }
+
+    function applyParkedSort(table, sortKey, direction) {
+        const controls = parkedControls(table, sortKey);
+        const tbody = table.tBodies[0];
+        if (!controls.length || !tbody) return;
+
+        clearSortChrome(table);
+        controls.forEach((control) => {
+            control.setAttribute('aria-sort', direction);
+            control.classList.add(direction === SORT_ASC ? 'sort-asc' : 'sort-desc');
+        });
+
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        rememberOriginalOrder(rows);
+        rows.sort((a, b) => compareSortValues(fieldValue(a, sortKey), fieldValue(b, sortKey), direction));
+        rows.forEach((row) => tbody.appendChild(row));
+    }
+
+    function sortTableByKey(table, sortKey) {
+        const controls = parkedControls(table, sortKey);
+        const tbody = table.tBodies[0];
+        if (!controls.length || !tbody) return;
+
+        let newDir;
+        const currentDir = controls[0].getAttribute('aria-sort');
+        if (currentDir === SORT_ASC) {
+            newDir = SORT_DESC;
+        } else if (currentDir === SORT_DESC) {
+            newDir = SORT_NONE;
+        } else {
+            newDir = SORT_ASC;
+        }
+
+        if (newDir === SORT_NONE) {
+            clearSortChrome(table);
+            restoreOriginalOrder(tbody);
+            updateURL(null, null);
+            return;
+        }
+
+        applyParkedSort(table, sortKey, newDir);
+        updateURL(sortKey, newDir);
     }
 
     function sortTable(table, columnIndex) {
@@ -79,12 +208,8 @@ Adds visual indicators, keyboard support, and URL-based state preservation.
             newDir = SORT_ASC;
         }
 
-        // Reset all headers
-        const allHeaders = thead.querySelectorAll('th');
-        allHeaders.forEach(header => {
-            header.setAttribute('aria-sort', 'none');
-            header.classList.remove('sort-asc', 'sort-desc');
-        });
+        // Reset header and parked-control chrome
+        clearSortChrome(table);
 
         // If sort is none, restore original order
         if (newDir === SORT_NONE) {
@@ -192,6 +317,11 @@ Adds visual indicators, keyboard support, and URL-based state preservation.
             }
         });
 
+        if (!targetHeader || targetIndex < 0) {
+            applyParkedSort(table, sortKey, direction);
+            return;
+        }
+
         if (targetHeader && targetIndex >= 0) {
             // Apply sort
             targetHeader.setAttribute('aria-sort', direction);
@@ -260,13 +390,18 @@ Adds visual indicators, keyboard support, and URL-based state preservation.
         init: init,
         sortBy: function(table, sortKey, direction) {
             const headers = (table.tHead || table.querySelector('thead')).querySelectorAll('th');
+            let found = false;
             headers.forEach((th, index) => {
                 if (th.dataset.sortKey === sortKey) {
+                    found = true;
                     th.setAttribute('aria-sort', direction);
                     th.classList.add(direction === SORT_ASC ? 'sort-asc' : 'sort-desc');
                     sortTable(table, index);
                 }
             });
+            if (!found) {
+                applyParkedSort(table, sortKey, direction);
+            }
         }
     };
 })();
