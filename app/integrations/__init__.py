@@ -7,8 +7,9 @@ Modules:
 - scrapers: web scraping for competitor prices
 - barcode: barcode generation/parsing
 - printer: thermal printer / receipt integration
+- email_outbound: SMTP outbound email with retry (S2 robustness PR7)
 """
 
-from app.integrations import barcode, printer, scrapers
+from app.integrations import barcode, email_outbound, printer, scrapers
 
-__all__ = ["barcode", "printer", "scrapers"]
+__all__ = ["barcode", "email_outbound", "printer", "scrapers"]
