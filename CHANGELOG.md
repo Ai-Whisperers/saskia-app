@@ -1,3 +1,46 @@
+## 2026-10-13 — refactor(rms): SASKIA-211x split margin_drift_all (CC 22 → 6, D → B, 6 helpers)
+
+**Scope**: `app/rms/product_price_history.py` (split of `margin_drift_all` only; `product_price_history` untouched, `MarginDrift` dataclass untouched).
+
+Orchestrator pattern: thin coordinator (`margin_drift_all`, CC 6) + single-purpose private helpers, all A-grade (CC ≤ 4). No behavior change — every branch from the pre-split implementation is preserved character-for-character. Public signature `margin_drift_all(session, days=30, min_sales=2)` is unchanged so callers (`app/routers/insights_stock.py:77`) and the 7-scenario test matrix in `tests/test_d_grade_helpers_batch5.py` pass without modification.
+
+Helpers extracted:
+
+- `_sale_window_bounds(session, days)`                CC 2  — `(product_id, first_at, last_at)` per product; early-return on empty window.
+- `_last_sale_price_at_or_before(session, pid, at)`  CC 1  — last non-voided sale price ≤ at, used for both first-window and last-window lookups.
+- `_current_cost_for(margins, product_id)`           CC 3  — extract int Gs. recipe cost from a margin entry (None when no entry or `batch_cost_gs` is None).
+- `_safe_pct_change(new, old)`                       CC 2  — `(new - old) / old` with the prior `> 0` guard (None when `old <= 0`).
+- `_build_margin_drift(...)`                         CC 2  — pure function over ints that builds one `MarginDrift` row, including the no-recipe (current_cost=None → all margin fields None) branch that crashed P-26 at the template level.
+- `_resolve_drift_row(session, margins, ...)`        CC 4  — per-product row builder with the 3-way `prod / first_sale / last_sale` missing-row filter; returns `MarginDrift | None`.
+- `_existing_products(session, product_ids)`            CC 4  — `session.get` with `None`-filter, preserves order.
+
+Orchestrator:
+
+- `margin_drift_all(session, days, min_sales)`        CC 6  — calls `_sale_window_bounds` → `batch_products_cost_margin(_existing_products(...))` → loop `_resolve_drift_row` → sort by margin_change_gs ascending.
+
+Radon CC delta:
+
+```
+app/rms/product_price_history.py:margin_drift_all                  22 -> 6   (D→B)
+app/rms/product_price_history.py:_sale_window_bounds                  new (CC 2)
+app/rms/product_price_history.py:_last_sale_price_at_or_before        new (CC 1)
+app/rms/product_price_history.py:_current_cost_for                    new (CC 3)
+app/rms/product_price_history.py:_safe_pct_change                     new (CC 2)
+app/rms/product_price_history.py:_build_margin_drift                  new (CC 2)
+app/rms/product_price_history.py:_resolve_drift_row                   new (CC 4)
+app/rms/product_price_history.py:_existing_products                   new (CC 4)
+```
+
+`make complexity` no longer lists `product_price_history.py` in the D-grade offender list (`margin_drift_all` is now B, every helper is A).
+
+Behavior preservation: 15 tests pass across two files:
+
+- `tests/test_d_grade_helpers_batch5.py::test_margin_drift_all_branches[*]` — 7/7 (the full branch matrix from s1-batch5: empty_db, price_increase_margin_grew, price_decrease_margin_eroded, no_recipe_none_margins, multi_product_window, voided_sale_excluded, multi_product_sort_eroded_first).
+- `tests/test_P26_margenes_margin_change_pct.py::test_margenes_page_handles_none_margin_change_pct` — 1/1 (the page-render regression that locked the None-margin-change-pct crash).
+- `tests/test_d_grade_helpers_batch5.py::test_from_workbook_branches[*]` + `test_parametrize_row_count` — 7/7 (untouched; verifies the sibling helper in the same test file still works after the file edit).
+
+NOTE: `min_sales` is declared but NOT honored in the body (would need `GROUP BY ... HAVING count(*) >= min_sales`). The 7-scenario test `multi_product_window` documents this as the existing behavior; wiring it through is queued as a separate change (not in this PR).
+
 ## 2026-10-13 — test(s1-batch6): parametrize _pedido_resolve_customer + _pedido_persist_address_book_entry (CC 24 + 23, D-grade → +16 cases)
 
 **Scope**: `tests/test_d_grade_helpers_batch6.py` (new, ~830 lines). Continues the s1-batch3/4/5 pattern of locking D-grade branch matrices with parametrized rows.
