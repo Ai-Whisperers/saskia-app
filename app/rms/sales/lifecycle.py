@@ -27,6 +27,7 @@ from app.rms.profitability.cost import (
     CostResult,
     CycleInRecipeTree,
     RecipeWithoutYield,
+    batch_recipes_cost,
     recipe_batch_cost_gs,
     recipe_unit_cost_gs,
     resolve_line_target,
@@ -494,58 +495,9 @@ __all__ = [
     "RecipeWithoutYield",
     "VoidSaleResult",
     "apply_sale",
+    "batch_recipes_cost",
     "recipe_batch_cost_gs",
     "recipe_unit_cost_gs",
     "resolve_line_target",
     "void_sale",
 ]
-
-
-def batch_recipes_cost(
-    session: Session,
-    recipes: list[Recipe],
-) -> dict[int, tuple["CostResult", "CostResult | None", int]]:
-    """Batch-compute batch + unit cost + line_count for many recipes.
-
-    Replaces the N+1 pattern of calling recipe_batch_cost_gs per recipe.
-    Pre-loads all referenced lines + ingredients in 2-3 queries, then
-    computes cost in Python using the identity map.
-
-    Returns {recipe_id: (CostResult, unit CostResult | None, line_count)}.
-    """
-    if not recipes:
-        return {}
-
-    recipe_ids = {r.id for r in recipes if r is not None}
-    if not recipe_ids:
-        return {
-            r.id: (CostResult(batch_cost_gs=None, missing_ingredient_names=[]), None, 0)
-            for r in recipes
-        }
-
-    # Pre-load Recipe + lines + ingredients in 3 queries.
-    session.scalars(select(Recipe).where(Recipe.id.in_(recipe_ids))).all()
-    all_lines = session.scalars(
-        select(RecipeLine).where(RecipeLine.recipe_id.in_(recipe_ids))
-    ).all()
-    line_counts: dict[int, int] = {rid: 0 for rid in recipe_ids}
-    for ln in all_lines:
-        line_counts[ln.recipe_id] = line_counts.get(ln.recipe_id, 0) + 1
-
-    ingredient_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "ingredient"}
-    sub_recipe_ids = {ln.line_ref_id for ln in all_lines if ln.line_kind == "sub_recipe"}
-    if ingredient_ids:
-        session.scalars(select(Ingredient).where(Ingredient.id.in_(ingredient_ids))).all()
-    if sub_recipe_ids:
-        sub_recipes = session.scalars(select(Recipe).where(Recipe.id.in_(sub_recipe_ids))).all()
-        new_recipe_ids = {sr.id for sr in sub_recipes}
-        session.scalars(select(RecipeLine).where(RecipeLine.recipe_id.in_(new_recipe_ids))).all()
-
-    out: dict[int, tuple[CostResult, CostResult | None, int]] = {}
-    for r in recipes:
-        if r is None:
-            continue
-        batch = recipe_batch_cost_gs(session, r.id)
-        unit = recipe_unit_cost_gs(session, r.id) if batch.batch_cost_gs is not None else None
-        out[r.id] = (batch, unit, line_counts.get(r.id, 0))
-    return out
