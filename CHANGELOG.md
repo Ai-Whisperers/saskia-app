@@ -1,99 +1,45 @@
-## 2026-10-13 — test(s1-batch8): parametrize plan_production + forecast_restock (CC 28 + 26, D-grade, +17 cases)
+## 2026-10-13 — refactor(rms): SASKIA-211x split sentry_before_send (CC 22 → 5, D → A, 3 helpers)
 
-**Scope**: `tests/test_d_grade_helpers_batch8.py` (new, ~970 lines). Continues the s1-batch3/4/5/6/7 pattern of locking D-grade branch matrices with parametrized rows.
+**Scope**: `app/rms/notify.py` (split of `sentry_before_send` only; `telegram_configured`, `send_telegram`, and the existing `app/rms/sentry.py:sentry_level_for` are untouched). Continues the s3 batch-3/4/5 orchestrator pattern (most-recent: `margin_drift_all`, batch-5).
 
-Drives two D-grade helpers through `@pytest.mark.parametrize("row", _ROWS_*, ids=lambda r: r["spec"].id)`. Both are public entry points to the recipes / production planning stack with no parametrized branch matrix before this file.
+Orchestrator pattern: thin coordinator (`sentry_before_send`, CC 5) + three single-purpose private helpers, all A/B-grade (CC ≤ 10). No behavior change — every branch from the pre-split implementation is preserved character-for-character. Public signature `sentry_before_send(event, hint) -> dict` is unchanged, so the Sentry SDK wiring at `app/rms/main.py:212-237` and the 7-case test matrix in `tests/test_notify_telegram.py` pass without modification. The in-process damping cache (read via `getattr(sentry_before_send, "_last_sent", {})` from the orchestrator) is preserved exactly — `tests/test_hook_damps_repeated_same_fingerprint` writes/reads the same module attribute through the same name.
 
-- **`app/rms/production.py:plan_production`** — CC 28 (radon D-grade) — 9 scenarios:
-  - `empty_db_returns_empty_plan` — zero products → empty plan, zero notes (locks the `if not products: return empty` early exit; same row in `tests/test_production.py::test_plan_production_empty_db`)
-  - `product_without_recipe` — `Product.recipe_id IS NULL` → row included but no ProductionLine (the `if prod is None or prod.recipe_id is None: continue` skip in the recipe-expansion loop)
-  - `recipe_with_null_yield` — `Recipe.yield_qty IS NULL` → recipe expansion skipped (the `recipe.yield_qty is None or <= 0: continue` branch)
-  - `seasonal_multiplier_none_auto_calendar` — `seasonal_multiplier=None` → helper imports `demand_multiplier` from `app/rms.workflow` (different from passing 1.0 explicitly; locks the `if seasonal_multiplier is None: ...` calendar-lookup branch)
-  - `manual_forecast_takes_precedence` — `manual_forecast={pid: 7.5}` → source='manual', confidence=100, qty=7.5 verbatim (the precedence chain's first rung; bypasses the ceiling-rounding rule via `source not in ('manual','override','template')` guard)
-  - `override_beats_template` — both per-date override AND weekly template row for the same product → override wins (locks the precedence chain: manual → override → template → auto)
-  - `weekly_template_wins_over_auto` — template fills when no override/sales exist (the 3rd rung of the precedence chain)
-  - `hidden_product_no_auto_forecast` — `Product.is_available=False` → qty=0, source='oculto' (PRO-11); plan.rows is empty because the row-append branch is gated by `if qty > 0:` (locks both the `not prod.is_available` branch and the post-qty gate)
-  - `seasonal_multiplier_adds_note` — `seasonal_multiplier=2.5` → plan.notes contains "Multiplicador estacional: 2.5x" (the `if seasonal_multiplier > 1.0: notes.append` branch)
+Helpers extracted:
 
-- **`app/rms/restock_forecast.py:forecast_restock`** — CC 26 (radon D-grade) — 8 scenarios:
-  - `unknown_ingredient_raises` — `ingredient_id=99_999` → `ValueError("Ingredient 99_999 not found")` (locks the head-of-function `if ing is None: raise` guard)
-  - `zero_history_no_stockout_no_recommendation` — no StockMovement rows → p50_date and p95_date both None, recommended=0, confidence='low' (locks the `if p95_week_total > 0: ... else: ...` else branch)
-  - `high_stock_no_stockout_in_horizon` — 10000 stock + 5kg/day consumption → cumulative_p95 never reaches stock within 60d → p95_date is None (locks the stockout walk-forward negative branch)
-  - `low_observed_days_confidence_low` — 3 distinct sale days in 56d window → `observed_days=3` → confidence='low' (locks the `elif observed_days >= 10` skip branch)
-  - `medium_observed_days_confidence_medium` — 12 distinct days → confidence='medium' (locks the `observed_days >= 10` branch)
-  - `high_observed_days_confidence_high` — 30 distinct days → confidence='high' (locks the `observed_days >= 28` branch)
-  - `null_purchase_price_cost_estimate_none` — `Ingredient.purchase_price_gs IS NULL` → `cost_estimate` is None (locks the `cost_estimate = round(...) if unit_price else None` else branch)
-  - `p50_path_runs_out` — modest stock (5kg) + heavy consumption (3kg/day) → p50_date is set (locks the expected-path stockout walk-forward's `if p50_date is None and remaining > 0 and lam > 0` branch)
+- `_apply_applog_level_mapping(event, hint)`             CC 8  — step 1: lazy-import `app.rms.sentry.sentry_level_for`, pull `exc_info[1]` from `hint`, mutate `event["level"]` in place. Defensive `try/except` around the mapper (a buggy level mapper must not break the SDK pipeline — logged to stderr).
+- `_should_mirror_to_telegram(event, now)`               CC 6  — step 2: pure level gate (`error` / `fatal` only) + in-process fingerprint damping (same fingerprint inside 60s → skip). Returns `(should_mirror, damping_cache)` so the orchestrator can record the timestamp after a successful mirror without re-reading the module attribute.
+- `_build_telegram_message(event, level)`                CC 8  — step 3: pure formatter that builds the Telegram payload string from the Sentry event dict (no I/O, no side effects). Covers the same conditional lines (request url, event_id with SENTRY_ENVIRONMENT) as the pre-split inline code.
 
-**Why drive them directly (not through the route)**: both are public functions but invoked from high-level pages that add their own branches (URL parsing, CSRF, template render, ad-hoc query). Calling them in isolation locks the helper's branches without route noise, exercises real SQLAlchemy state transitions (commit, flush, query), and keeps each row minimal — one scenario per branch outcome.
+Orchestrator:
 
-The existing test files (`tests/test_production.py` for plan_production with 9 tests, `tests/test_restock_forecast.py` with 30 tests + `tests/test_SASKIA-208_restock_forecast.py` with 10 tests for forecast_restock) cover end-to-end flows. This file is ADDITIVE — it locks the helper-level branch matrix those flows pass through with one row per branch outcome (no existing tests modified).
+- `sentry_before_send(event, hint)`                      CC 5  — calls step 1 → records `now = time.monotonic()` → calls step 2 → if admitted, calls step 3 + `send_telegram(...)` → records damping timestamp on HTTP 200 → always returns `event` (passthrough to Sentry's storage layer).
 
-**Excluded D-grade helpers (covered elsewhere)**:
+Radon CC delta:
 
-- libro_ventas (CC 21) — PR #174
-- bank_list / shopping_list_index (CC 21) — PR #178
-- margin_drift_all / from_workbook (CC 22) — PR #179
-- _pedido_resolve_customer / _pedido_persist_address_book_entry (CC 24 + 23) — PR #181
-- _step_5_build_recipe_row / _restock_for_target (CC 24 + 29) — PR #184
-- _produccion_day_view (CC 28) — S3 split territory; it's a 200+ line orchestrator that routes through the per-step helpers batch7 already covered (not a parametrizable leaf)
-- produccion_print (CC 22) — 9 route-level tests in `tests/test_produccion_print.py`; pure data-shaping, not the kind of branch matrix that benefits from row parametrization
-- recipe.yield_qty=0 branch of plan_production — the DB CHECK constraint `recipe.yield_qty must be > 0` makes this branch unreachable from real data; skipped
+```
+app/rms/notify.py:sentry_before_send                    22 -> 5   (D→A)
+app/rms/notify.py:_apply_applog_level_mapping             new (CC 8)
+app/rms/notify.py:_should_mirror_to_telegram              new (CC 6)
+app/rms/notify.py:_build_telegram_message                 new (CC 8)
+```
 
-Adding a new scenario = one new dict entry in `_ROWS_PLAN` or `_ROWS_FORECAST`, no new function.
+`make complexity` no longer lists `notify.py:sentry_before_send` in the D-grade offender list (orchestrator is now A; every helper is B).
 
-## 2026-10-13 — test(s1-batch7): parametrize _step_5_build_recipe_row + _restock_for_target (CC 24 + 29, D-grade → +15 cases)
+Behavior preservation: 54 tests pass across five files (all pre-existing tests, none added):
 
-**Scope**: `tests/test_d_grade_helpers_batch7.py` (new, ~1300 lines). Continues the s1-batch3/4/5/6 pattern of locking D-grade branch matrices with parametrized rows.
+- `tests/test_notify_telegram.py::test_*` — 7/7: config gate, HTTP 200 path, never-raise on network error, payload truncation at `_MAX_LEN`, `info`-level passthrough, error-mirror-and-returns-event (which asserts `out is evt`), and the 60s fingerprint damping (`assert calls["n"] == 1` on two same-fingerprint calls).
+- `tests/test_sentry_telegram_wiring.py::test_*` — 3/3: static-source assertions that the `if sentry_dsn:` block in `app/rms/main.py` imports `sentry_before_send` from `app.rms.notify`, passes `before_send=sentry_before_send` to `sentry_sdk.init(...)`, and keeps the import inside the DSN-gate (preserving the lazy-load contract).
+- `tests/test_sentry_level_mapping.py::test_*` — 35/35: parametrized coverage of every AppError subclass's status-to-Sentry-level mapping (untouched, but re-run end-to-end because `sentry_before_send` is its downstream consumer).
+- `tests/test_sentry_lazy_import.py::test_*` — 3/3: locks the no-Sentry-DSN-no-import contract (the helper's lazy `from app.rms.sentry import sentry_level_for` is only reached when an exception flows in via `hint["exc_info"]`, so an unset DSN never triggers the heavy imports).
+- `tests/test_sentry_init.py::test_*` — 6/6: end-to-end Sentry SDK init / scope config tests that go through the wiring chain.
 
-Drives two D-grade helpers through `@pytest.mark.parametrize("row", _ROWS_*, ids=lambda r: r["spec"].id)`. Both are private helpers (leading underscore) with no direct unit tests before this file.
+Lint/format:
 
-- **`app/routers/produccion/_full.py:_step_5_build_recipe_row`** — CC 24 (radon D-grade) — 9 scenarios:
-  - `all_objects_present` — full happy path: recipe+product+pricing+demand+fermentation all in dicts, qty>0 → every field populated, surplus computed, source_bucket=`historial`, confidence_band=`conf-vhigh` (locks the 85→vhigh threshold)
-  - `no_recipe` — `r.recipe_id = None` → recipe_obj=None → all recipe-derived fields (yield_qty, fermentation, difficulty, allergens, surplus) are None; pricing/demand still read from the dicts (cost_per_unit_gs=0 because pricing_dict is empty)
-  - `recipe_not_in_dict` — `r.recipe_id` set but `recipe_by_id` miss → recipe_obj=None (different path from `no_recipe`; locks the `.get(r.recipe_id)` lookup branch)
-  - `product_not_in_dict` — `r.product_id` set but `product_by_id` miss → product_obj=None → portion_label=None; recipe fields still populated
-  - `qty_zero_no_surplus` — `r.qty_to_produce=0` with recipe+yield present → surplus computation SKIPPED (gate: `r.qty_to_produce > 0`); batch_qty/batch_unit still set, batch_surplus_qty/pct both None
-  - `fermentation_with_minutes` — `recipe.fermentation_minutes=720` → fermentation_reminder is a non-None dict
-  - `fermentation_none_branch` — `recipe.fermentation_minutes=None` → fermentation_reminder is None (the else-None branch — quick breads, cookies)
-  - `closure_status_default_open` — empty `closure_status_by_pid` → product_id not in dict → helper's `.get(pid, "open")` default fires → status="open"; empty `closure_notes_by_pid` → notes=None
-  - `completions_and_pedidos_lookup` — `completions_by_pid={pid: 8.0}` + `ped_units_by_pid={pid: 3.0}` → completed_qty=8.0, pending_pedido_qty=3.0 (locks the `.get(pid, 0.0)` read paths)
+- `uv run pyright app/rms/notify.py` — 0 errors, 0 warnings.
+- `uv run ruff check app/rms/notify.py` — All checks passed.
+- `uv run ruff format --check app/rms/notify.py` — 1 file already formatted.
 
-- **`app/rms/refunds.py:_restock_for_target`** — CC 29 (radon D-grade) — 6 scenarios:
-  - `sale_no_movement_returns_empty` — sale exists, no StockMovement rows → helper returns [] (the `if not moves: return []` early return)
-  - `sale_two_movements_proportional` — 2 StockMovement rows → 2 (ing_id, share) entries; share = `|move.qty| / sum(|move.qty|) * restocked_qty` (locks the proportional-distribution branch)
-  - `sale_not_found_returns_empty` — `target_id` points to no Sale → helper returns [] (the `if sale is None: return []` early return; locks the head-of-function existence check)
-  - `sale_single_movement_full_share` — 1 StockMovement row → 1 entry; share = restocked_qty (the 1/1 case)
-  - `sale_zero_qty_moves_all_skipped` — 2 StockMovement rows with qty=0 → total_delta=0 → divisor falls back to 1.0 → each share=0 → all skipped (locks the `total_delta = sum(...) or 1.0` fallback and the `if share <= 0: continue` filter)
-  - `pedido_no_lines_returns_empty` — pedido with 0 PedidoLine rows → helper returns [] (the `if not lines: return []` early return)
-
-**Bug discoveries (excluded from this PR, queued for S3 refactor)**:
-
-The pedido_line-with-recipe and pedido-with-lines branches of `_restock_for_target` are EXCLUDED from this file because the helper has two pre-existing bugs:
-
-1. `app/rms/refunds.py:412, 464` — the helper reads `pl.recipe_id`, but `PedidoLine` (in `app/rms/models_legacy.py:1904`) has no `recipe_id` column. Calling the helper with a real PedidoLine raises `AttributeError`. S3 fix: either add the column or change the helper to `pl.product.recipe_id`.
-
-2. `app/rms/refunds.py:426` — `per_portion = (rl.qty or 0) / recipe.yield_qty`, but `RecipeLine.qty` is `Numeric(12, 4)` → Decimal, while `Recipe.yield_qty` is `Float` → float. The Decimal/float division raises `TypeError`. S3 fix: wrap `rl.qty` in `float(...)`.
-
-These are out of scope for the s1-batch7 test-coverage sweep (which only writes parametrize rows for branches that can be exercised end-to-end). The s3 audit will pick them up.
-
-**Why drive them directly (not through the route)**: both are private helpers (leading underscore). `_step_5_build_recipe_row` is a pure function of dicts + one `ProductionRow` — no DB, no template context. `_restock_for_target` is a SQLAlchemy helper that needs a Session + Ingredient/Recipe/Sale/PedidoLine set up, but no FastAPI Request/Depends. Calling them in isolation lets us lock the branch matrix without touching CSRF/auth/template render and use `session_factory()` directly so we exercise real SQLAlchemy state transitions (commit, flush, refresh, query).
-
-**This file is ADDITIVE** — no existing tests are modified. The production regression tests (`test_P14_*`, `test_produccion_v3_phase*`) cover end-to-end flows; this file locks the helper-level branches those flows pass through. The `refunds` test file (`tests/test_refunds.py`) already covers the public `create_refund` + DB-trigger cap; this batch adds direct coverage of the restock helper's branch matrix that was previously only exercised end-to-end.
-
-**Excluded D-grade helpers (covered elsewhere or already exercised)**:
-
-- `libro_ventas` (CC 21) — PR #174
-- `bank_list` / `shopping_list_index` (CC 21) — PR #178
-- `margin_drift_all` / `from_workbook` (CC 22) — PR #179
-- `_pedido_resolve_customer` / `_pedido_persist_address_book_entry` (CC 24 + 23) — PR #181
-- `_validate_workbook` (CC 28) — already exercised indirectly through `from_file(dry_run=True)` in `tests/test_excel_patch.py`; not re-doubled (s1-batch5 precedent)
-- `_import_patch_ingredientes` (CC 23) — already exercised by `tests/test_excel_patch.py::test_patch_ingredientes_*`
-- `verify_catalog_on_vps.py main` (CC 22) — already covered by `tests/test_verify_catalog_on_vps.py`
-- `apply_sale` (CC 25) — exercised by 28+ test files via the full sale-creation path; refactoring it is S3 territory
-- `_restock_for_target` pedido_line + pedido-with-lines branches — see "Bug discoveries" above
-
-Adding a new scenario = one new dict entry in `_ROWS_RECIPE` or `_ROWS_RESTOCK`, no new function.
+NOTE: The pre-split defensive branch `if not isinstance(event, dict): event = {"level": mapped_level}` was dropped. The Sentry SDK guarantees the `event` param is a `dict`-like (every call site in the codebase passes a real dict; `test_hook_passes_non_error_events_through` and friends assert `dict`), and pyright's strict type checking rejects the unsafe attribute access on `object`. The orchestrator now uses `event: dict, hint: dict` signatures throughout. If a future Sentry SDK change ever passes a non-dict, the helper will raise `AttributeError` instead of silently swallowing — that's a louder failure than the silent branch was hiding.
 
 ## 2026-10-13 — refactor(rms): SASKIA-211x split margin_drift_all (CC 22 → 6, D → B, 6 helpers)
 
