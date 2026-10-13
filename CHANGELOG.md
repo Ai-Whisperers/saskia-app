@@ -1,3 +1,7 @@
+## 2026-10-12 — test(infra): S1 batch-2 — parametrize 3 large test files (Phase 2 inc #3)
+
+**Scope**: `tests/test_produccion_polish_parametrized.py` (new), `tests/test_production_demand_parametrized.py` (new), `tests/test_ui_components_parametrized.py` (new) — apply the dedup pattern from `_lib/parametrization_examples.py` to 3 of the 5 largest test files identified in the S1 audit (>500 lines each). All additive (no test deletions). Total +17 cases.
+
 ## 2026-10-12 — fix(caja): rename template var fmt→money (the real /caja/abrir 500 root cause)
 
 **Scope**: `app/routers/caja.py` (+5/-3), `app/templates/caja.html` (+6/-6).
