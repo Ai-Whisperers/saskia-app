@@ -91,13 +91,100 @@ def sum_refunds_for(session: Session, target_type: str, target_id: int) -> int:
     return int(total or 0)
 
 
+def _resolve_sale_target(session: Session, target_id: int) -> tuple[Sale, int, str, date | None]:
+    """Resolve a 'sale' target. Returns (sale, total_gs, payment_method, eod_date).
+
+    Raises RefundError('not_found') if the Sale does not exist, or
+    RefundError('voided') if the Sale has been voided (voids are separate
+    from refunds — a voided sale cannot be refunded).
+    """
+    sale = session.get(Sale, target_id)
+    if sale is None:
+        raise RefundError("not_found", f"Venta {target_id} no encontrada.", sale_id=target_id)
+    if sale.voided_at is not None:
+        raise RefundError(
+            "voided",
+            f"Venta {target_id} ya anulada. Una venta anulada no se puede reembolsar.",
+            sale_id=target_id,
+        )
+    # Snapshot the sale total at refund time. Use qty * unit_price_gs - discount.
+    # unit_price_gs is already a snapshot from the original sale, so this is
+    # what the customer actually paid for this sale (no recomputation needed).
+    total_gs = max(0, int(sale.qty * sale.unit_price_gs) - int(sale.discount_gs or 0))
+    return (
+        sale,
+        total_gs,
+        str(sale.payment_method or "efectivo"),
+        (sale.sold_at.date() if sale.sold_at else None),
+    )
+
+
+def _resolve_pedido_target(
+    session: Session, target_id: int
+) -> tuple[Pedido, int, str, date | None]:
+    """Resolve a 'pedido' target. Returns (pedido, total_gs, payment_method, eod_date).
+
+    Total is the sum of (line.qty * line.unit_price_gs) across all lines of
+    the pedido. Pedidos use payment_intent (not payment_method), but they're
+    the same concept for refund purposes.
+
+    Raises RefundError('not_found') if the Pedido does not exist.
+    """
+    pedido = session.get(Pedido, target_id)
+    if pedido is None:
+        raise RefundError("not_found", f"Pedido {target_id} no encontrado.", pedido_id=target_id)
+    lines = session.scalars(sa_select(PedidoLine).where(PedidoLine.pedido_id == target_id)).all()
+    total_gs = sum(max(0, int((ln.qty or 0) * (ln.unit_price_gs or 0))) for ln in lines)
+    return (
+        pedido,
+        total_gs,
+        str(pedido.payment_intent or "efectivo"),
+        (pedido.promised_date if hasattr(pedido, "promised_date") else None),
+    )
+
+
+def _resolve_pedido_line_target(
+    session: Session, target_id: int
+) -> tuple[PedidoLine, int, str, date | None]:
+    """Resolve a 'pedido_line' target. Returns (line, total_gs, payment_method, eod_date).
+
+    Total is (qty * unit_price_gs) for the line; payment_method and eod_date
+    are inherited from the parent Pedido (best-effort: falls back to
+    'efectivo' and None if the parent pedido row is missing).
+
+    Raises RefundError('not_found') if the PedidoLine does not exist.
+    """
+    pl = session.get(PedidoLine, target_id)
+    if pl is None:
+        raise RefundError(
+            "not_found",
+            f"Línea de pedido {target_id} no encontrada.",
+            pedido_line_id=target_id,
+        )
+    total_gs = max(0, int((pl.qty or 0) * (pl.unit_price_gs or 0)))
+    parent_pedido = session.get(Pedido, pl.pedido_id)
+    payment_method = (
+        str(parent_pedido.payment_intent or "efectivo") if parent_pedido else "efectivo"
+    )
+    return (
+        pl,
+        total_gs,
+        payment_method,
+        (parent_pedido.promised_date if parent_pedido else None),
+    )
+
+
 def _resolve_target(
     session: Session, target_type: str, target_id: int
 ) -> tuple[object, int, str, date | None]:
     """Resolve target_type+target_id to (row, total_amount_gs, payment_method, eod_date).
 
-    Raises RefundError with code 'not_found' if the target doesn't exist,
-    or 'voided' if the Sale has been voided (voids are separate from refunds).
+    Orchestrator: validates the target_type, then dispatches to one of three
+    per-type resolvers. Each helper raises RefundError on the same conditions
+    the pre-split inline code did (not_found, voided). Public signature and
+    exception behavior are preserved character-for-character so callers
+    (create_refund) and the 16 tests in tests/test_refunds.py +
+    tests/test_refund_router.py pass without modification.
     """
     if target_type not in VALID_TARGET_TYPES:
         raise RefundError(
@@ -107,60 +194,11 @@ def _resolve_target(
         )
 
     if target_type == "sale":
-        sale = session.get(Sale, target_id)
-        if sale is None:
-            raise RefundError("not_found", f"Venta {target_id} no encontrada.", sale_id=target_id)
-        if sale.voided_at is not None:
-            raise RefundError(
-                "voided",
-                f"Venta {target_id} ya anulada. Una venta anulada no se puede reembolsar.",
-                sale_id=target_id,
-            )
-        # Snapshot the sale total at refund time. Use qty * unit_price_gs - discount.
-        # unit_price_gs is already a snapshot from the original sale, so this is
-        # what the customer actually paid for this sale (no recomputation needed).
-        total_gs = max(0, int(sale.qty * sale.unit_price_gs) - int(sale.discount_gs or 0))
-        return (
-            sale,
-            total_gs,
-            str(sale.payment_method or "efectivo"),
-            (sale.sold_at.date() if sale.sold_at else None),
-        )
-
+        return _resolve_sale_target(session, target_id)
     if target_type == "pedido":
-        pedido = session.get(Pedido, target_id)
-        if pedido is None:
-            raise RefundError(
-                "not_found", f"Pedido {target_id} no encontrado.", pedido_id=target_id
-            )
-        # Pedido total: sum of (line.qty * line.unit_price_gs) across all lines.
-        from sqlalchemy import select as _sa_select
-
-        lines = session.scalars(
-            _sa_select(PedidoLine).where(PedidoLine.pedido_id == target_id)
-        ).all()
-        total_gs = sum(max(0, int((ln.qty or 0) * (ln.unit_price_gs or 0))) for ln in lines)
-        # Pedidos use payment_intent (not payment_method), but they're the same concept
-        return (
-            pedido,
-            total_gs,
-            str(pedido.payment_intent or "efectivo"),
-            (pedido.promised_date if hasattr(pedido, "promised_date") else None),
-        )
-
-    # pedido_line
-    pl = session.get(PedidoLine, target_id)
-    if pl is None:
-        raise RefundError(
-            "not_found", f"Línea de pedido {target_id} no encontrada.", pedido_line_id=target_id
-        )
-    total_gs = max(0, int((pl.qty or 0) * (pl.unit_price_gs or 0)))
-    # Inherit payment_method from the parent pedido
-    parent_pedido = session.get(Pedido, pl.pedido_id)
-    payment_method = (
-        str(parent_pedido.payment_intent or "efectivo") if parent_pedido else "efectivo"
-    )
-    return pl, total_gs, payment_method, (parent_pedido.promised_date if parent_pedido else None)
+        return _resolve_pedido_target(session, target_id)
+    # pedido_line (only remaining valid type)
+    return _resolve_pedido_line_target(session, target_id)
 
 
 def _check_eod_block(session: Session, eod_date: date | None) -> None:
