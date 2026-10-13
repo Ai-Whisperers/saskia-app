@@ -1689,3 +1689,22 @@ which migrated to `sazon-app` repo. **Not yet on her PC.**
   `test_import_roundtrip.py`, `test_healthz.py`, `test_r2_backup.py`,
   `test_recipe_polymorphic.py` — Tasks 1, 2, 6, 9.
 - `tests/fixtures/stress.xlsx` (real-scale synthetic) — Task 6.
+
+---
+
+## 2026-10-13 — test(accounting): parametrize libro_ventas (CC 21, D-grade → +5 cases, 27%→30%)
+
+**Scope**: `tests/test_libro_ventas_parametrized.py` (new, 329 lines).
+
+Adds parametrized coverage for `app/rms/accounting.py:libro_ventas` to lock the 5 report shapes the function is expected to handle:
+
+- `empty_period` — no sales in window → 0 rows.
+- `one_day_with_n_sales` — 3 gravada sales same day → 3 rows, total gross=40k.
+- `one_week_multi_day` — 4 in-window + 1 out-of-window (30 days back) → 4 rows.
+- `month_mixed_gravada_exenta` — gravada factura + gravada boleta + exenta in same month; locks the snapshot branch (iva_base_gs/iva_amount_gs>0 → use snapshot) and the exenta path (snapshot base==gross, iva=0).
+- `cancelled_sale_excluded` — 1 voided sale in window → dropped (sales_in_window has `include_voided=False` by default).
+
+Uses the `session_factory` conftest fixture (autouse `tmp_db_path` provides a fresh file-based SQLite per test). Anchored at `_ANCLA = 2026-10-09 12:00 UTC` so the test is calendar-stable. Sums asserted in Gs. per AGENTS.md rule 7.
+
+All 6 tests pass locally (`uv run rtk pytest tests/test_libro_ventas_parametrized.py --no-cov`).
+
