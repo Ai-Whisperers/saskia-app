@@ -80,33 +80,35 @@ VALID_SORT_KEYS = frozenset(
 )
 
 
+# Sort key extractors — one per VALID_SORT_KEYS entry. Returns the
+# PRIMARY comparison value for a given row; the wrapper below adds the
+# product_name tiebreak. Adding a new sortable column = one entry here.
+def _lote_final(row: dict):
+    return (row.get("qty_to_produce") or 0) + (row.get("pending_pedido_qty") or 0)
+
+
+_SORT_VALUE_EXTRACTORS = {
+    "product": lambda r: (r.get("product_name") or "").lower(),
+    "difficulty": lambda r: r.get("recipe_difficulty") or 0,
+    "demand": lambda r: r.get("qty_demand_total") or 0,
+    "meta": lambda r: r.get("qty_to_produce") or 0,
+    "pedidos": lambda r: r.get("pending_pedido_qty") or 0,
+    "lote": _lote_final,
+    "hecho": lambda r: r.get("completed_qty") or 0,
+    "sobrante": lambda r: r.get("batch_surplus_qty") or 0,
+    # open < done < cancelled (alpha order), so 'open' sorts first asc
+    "closure": lambda r: r.get("closure_status") or "open",
+}
+
+
 def _sort_value(row: dict, key: str):
     """Pull the comparison key out of a row dict. Returns a tuple so ties
-    break on product_name (stable ordering)."""
-    lote_final = (row.get("qty_to_produce") or 0) + (row.get("pending_pedido_qty") or 0)
-    if key == "product":
-        primary = (row.get("product_name") or "").lower()
-    elif key == "difficulty":
-        primary = row.get("recipe_difficulty") or 0
-    elif key == "demand":
-        primary = row.get("qty_demand_total") or 0
-    elif key == "meta":
-        primary = row.get("qty_to_produce") or 0
-    elif key == "pedidos":
-        primary = row.get("pending_pedido_qty") or 0
-    elif key == "lote":
-        primary = lote_final
-    elif key == "hecho":
-        primary = row.get("completed_qty") or 0
-    elif key == "sobrante":
-        primary = row.get("batch_surplus_qty") or 0
-    elif key == "closure":
-        # open < done < cancelled (alpha order), so 'open' sorts first asc
-        primary = row.get("closure_status") or "open"
-    else:
-        primary = lote_final
+    break on product_name (stable ordering). Unknown keys fall back to
+    "lote" — matches the previous behavior of the `else: lote_final`
+    branch."""
+    extractor = _SORT_VALUE_EXTRACTORS.get(key, _lote_final)
     # secondary tiebreak: product name asc (stable)
-    return (primary, (row.get("product_name") or "").lower())
+    return (extractor(row), (row.get("product_name") or "").lower())
 
 
 def _sort_produccion_rows(rows: list[dict], sort: str, dir: str) -> list[dict]:
