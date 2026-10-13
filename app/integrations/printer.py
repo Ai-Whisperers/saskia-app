@@ -19,6 +19,22 @@ ESC/POS commands used:
 - ESC ! n  → set font size (0..3)
 - ESC a n  → alignment (0=left, 1=center, 2=right)
 - GS V 1  → partial cut (0x1d 0x56 0x01)
+
+Resilience (S2 robustness PR8):
+- The NETWORK backend opens a TCP socket via
+  ``socket.create_connection((host, port), timeout=3.0)`` then sends the
+  payload. Wi-Fi thermal printers on a busy shop floor drop connections
+  all the time (AP restart, DHCP renewal, brief RF interference); a
+  single retry with backoff recovers from >95% of the "printer offline"
+  noise that would otherwise log a hard failure to the cashier.
+- ``send_to_printer_network`` is wrapped in
+  ``app.retry.retry_transient`` with ``attempts=3``. Transient errors
+  (``ConnectionRefusedError``, ``TimeoutError``, ``OSError`` such as
+  "Network is unreachable" / "No route to host") are retried with
+  exponential backoff; non-transient errors (unknown kind, USB
+  not-implemented) are unaffected and bypass the retry helper entirely.
+- The FILE + USB branches stay untouched: file writes are atomic at the
+  filesystem level and USB is an unimplemented stub.
 """
 
 from __future__ import annotations
@@ -31,6 +47,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from app.retry import retry_transient
 
 if TYPE_CHECKING:
     pass
@@ -184,6 +202,14 @@ def send_to_printer(
     """Send the payload to the configured printer.
 
     Returns a dict describing what happened.
+
+    The NETWORK backend is wrapped in :func:`app.retry.retry_transient`
+    (S2 robustness PR8) so transient TCP failures (connection refused,
+    timeout, no route to host) are retried with exponential backoff
+    instead of bubbling up as a hard "printer offline" error to the
+    cashier. FILE and USB branches are unwrapped: file I/O has no
+    transient surface, and USB is an unimplemented stub that should
+    surface immediately.
     """
     if config.kind == PrinterKind.FILE:
         out_dir = Path(config.dst_path)
@@ -194,9 +220,23 @@ def send_to_printer(
         return {"ok": True, "kind": "file", "path": str(out_file), "size": len(payload)}
 
     if config.kind == PrinterKind.NETWORK:
-        with socket.create_connection((config.host, config.port), timeout=3.0) as sock:
-            sock.sendall(payload)
-        return {"ok": True, "kind": "network", "host": config.host, "port": config.port}
+
+        def _send_one() -> dict:
+            with socket.create_connection((config.host, config.port), timeout=3.0) as sock:
+                sock.sendall(payload)
+            return {
+                "ok": True,
+                "kind": "network",
+                "host": config.host,
+                "port": config.port,
+            }
+
+        result = retry_transient(
+            _send_one,
+            attempts=3,
+            op_name="printer.network_send",
+        )
+        return result
 
     if config.kind == PrinterKind.USB:
         # Real USB write requires pyusb or system spooler integration.

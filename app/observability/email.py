@@ -24,6 +24,14 @@ Environment:
   Resend's side).
 - ``ALERT_EMAIL_DRY_RUN=1`` — log the payload, do not POST. Used in tests
   and in dev to verify what would be sent.
+
+Resilience (S2 robustness PR8):
+- The single ``urllib.request.urlopen`` POST is wrapped in
+  ``app.retry.retry_transient`` with ``attempts=3``. Resend's API
+  occasionally hiccups with transient ``URLError`` / ``TimeoutError``
+  on a busy day; retrying with exponential backoff recovers without
+  the operator noticing. Non-2xx responses still return False (no
+  retry on 4xx — those are operator-actionable, e.g. bad API key).
 """
 
 from __future__ import annotations
@@ -36,6 +44,8 @@ from dataclasses import dataclass
 from typing import Literal
 
 from loguru import logger
+
+from app.retry import retry_transient
 
 Severity = Literal["info", "warn", "error", "critical"]
 
@@ -136,14 +146,33 @@ def send_alert(
             },
             method="POST",
         )
-        with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
-            ok = 200 <= resp.status < 300
-            if not ok:
-                logger.warning(
-                    f"email_alert resend returned status={resp.status} subject={safe_subject!r}"
-                )
-            return ok
+
+        def _post_once() -> bool:
+            """One attempt to POST the payload; returns True on 2xx.
+
+            Non-2xx is treated as a soft failure (returns False) so the
+            outer ``send_alert`` can log + return False to the caller.
+            Anything that ``retry_transient`` classifies as transient
+            (URLError, TimeoutError, OSError) is re-raised so the helper
+            retries with exponential backoff.
+            """
+            with urllib.request.urlopen(req, timeout=_TIMEOUT_S) as resp:
+                ok = 200 <= resp.status < 300
+                if not ok:
+                    logger.warning(
+                        f"email_alert resend returned status={resp.status} subject={safe_subject!r}"
+                    )
+                return ok
+
+        return retry_transient(
+            _post_once,
+            attempts=3,
+            op_name="observability.email.send_alert",
+        )
     except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
+        # Exhausted retries OR a non-transient transport error (the
+        # default_is_transient classifier returns False for shapes it
+        # doesn't know; resend-specific HTTP failures land here too).
         # Never crash the caller over email. A log line is enough —
         # Sentry (separate integration) is the system of record for
         # alert delivery failures.
