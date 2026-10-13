@@ -24,24 +24,23 @@
 </div>
 {% endif %}
 
-<div class="d-flex" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;">
-  <div>
-    <a href="/clientes/duplicados" class="btn btn-sm" data-testid="link-duplicados">
-      <svg class="icon" aria-hidden="true"><use href="#icon-merge"/></svg>
-      Ver duplicados
-    </a>
-  </div>
-  <div class="d-flex" style="display:flex;gap:var(--space-2);align-items:center;">
-    {% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
-    <a href="{{ request.url.path }}?{{ csv_q|urlencode }}" class="btn btn-sm btn-ghost" download="clientes.csv">
-      <svg class="icon" aria-hidden="true"><use href="#icon-excel"/></svg>
-      Exportar CSV
-    </a>
-    <a id="nuevo-cliente-btn" class="btn btn-primary" href="#inline-new-client">
-      <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
-      Nuevo cliente
-    </a>
-  </div>
+<div class="page-actions" style="display:flex;gap:var(--space-2);align-items:center;justify-content:flex-end;margin-bottom:.75rem;">
+  <a id="nuevo-cliente-btn" class="btn btn-primary" href="#inline-new-client">
+    <svg class="icon" aria-hidden="true"><use href="#icon-plus"/></svg>
+    Nuevo cliente
+  </a>
+  <details class="more-menu">
+    <summary>Más</summary>
+    <div class="more-menu__panel">
+      {% set csv_q = dict(request.query_params.multi_items()) %}{% set _ = csv_q.update({'format': 'csv'}) %}
+      <a href="{{ request.url.path }}?{{ csv_q|urlencode }}" download="clientes.csv">
+        Exportar CSV
+      </a>
+      <a href="/clientes/duplicados" data-testid="link-duplicados">
+        Ver duplicados
+      </a>
+    </div>
+  </details>
 </div>
 
 <form method="get" action="/clientes" class="inv-toolbar d-flex" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:var(--space-3);">
@@ -75,70 +74,88 @@
 </div>
 {{ ui.skeleton_section(id="clients-table", variant="line", count=12, label="Cargando clientes") }}
 <div class="table-sticky-wrap" style="max-height:70vh;overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius);" data-loaded-section="clients-table">
+{% macro cliente_sort(col, label, sort, dir, q, tier, page) %}
+{%- set current = (sort == col) -%}
+<a href="?sort={{ col }}&amp;dir={% if current and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&amp;q={{ q|urlencode }}{% endif %}{% if tier %}&amp;tier={{ tier }}{% endif %}{% if page and page > 1 %}&amp;page={{ page }}{% endif %}"
+   class="th-sort{% if current %} th-sort--active{% endif %}"
+   aria-label="Ordenar por {{ label }}">
+  {{ label }}
+  {%- if current %}{% if dir == 'asc' %}↑{% else %}↓{% endif %}{% else %}↕{% endif -%}
+</a>
+{% endmacro %}
 <div class="table-wrap">
-<table class="table is-hoverable is-striped mb-0" >
+<table class="table is-hoverable is-striped mb-0 catalog-list client-list">
   <thead>
     <tr>
-      <th><input type="checkbox" id="select-all-clients" aria-label="Seleccionar todos"></th>
-      {% macro th(col, label) %}
-      {% set current = (sort == col) %}
-      <th class="{% if current %}sorted{% endif %}">
-        <a href="?sort={{ col }}&amp;dir={% if current and dir == 'asc' %}desc{% else %}asc{% endif %}{% if q %}&amp;q={{ q|urlencode }}{% endif %}{% if tier %}&amp;tier={{ tier }}{% endif %}{% if page and page > 1 %}&amp;page={{ page }}{% endif %}"
-           style="color:inherit;text-decoration:none;display:flex;align-items:center;gap:4px;justify-content:flex-end{% if col in ['n_sales','lifetime_spend_gs','points']%};text-align:right{% endif %}">
-          {{ label }}
-          {% if current %}
-            {% if dir == 'asc' %}↑{% else %}↓{% endif %}
-          {% else %}↕{% endif %}
-        </a>
+      <th>
+        <div class="catalog-list__l1">
+          <span><input type="checkbox" id="select-all-clients" aria-label="Seleccionar todos"></span>
+          <span>{{ cliente_sort("name", "Nombre", sort, dir, q, tier, page) }}</span>
+          <span class="catalog-list__phone">{{ cliente_sort("phone", "Teléfono", sort, dir, q, tier, page) }}</span>
+          <span class="catalog-list__tier">{{ cliente_sort("tier", "Nivel", sort, dir, q, tier, page) }}</span>
+          <span>Ver detalles</span>
+        </div>
       </th>
-      {% endmacro %}
-      {{ th("name", "Nombre") }}
-      {{ th("phone", "Teléfono") }}
-      {{ th("n_sales", "Visitas") }}
-      {{ th("lifetime_spend_gs", "Gasto total (Gs.)") }}
-      {{ th("points", "Puntos") }}
-      {{ th("tier", "Nivel") }}
-      {# Tier 6.1 (2026-10-01): sort-by-last-purchase column + sub badge column #}
-      {{ th("last_sale_at", "Última compra") }}
-      <th title="Suscripciones activas / Pedidos abiertos">Sub · Ped</th>
-      <th>Registrado</th>
-      <th class="actions"></th>
     </tr>
   </thead>
   <tbody>
     {% for c in customers %}
     <tr data-id="{{ c.id }}">
-      <td><input type="checkbox" name="selected_clients" value="{{ c.id }}" aria-label="Seleccionar {{ fmt.entity_name(c) }}"></td>
-      <td><strong data-copy="{{ c.id }}" title="Click to copy ID">{{ fmt.entity_name(c) }}</strong></td>
-      <td>{{ c.phone }}</td>
-      <td class="num">{{ c.n_sales }}</td>
-      <td class="num">{{ m.gs(c.lifetime_spend_gs) }}</td>
-      <td class="num">{{ c.points }}</td>
       <td>
-        {{ ui.status_pill(c.tier_label, c.tier_sev) }}
-      </td>
-      <td class="num"><small>{% if c.last_sale_at %}{{ c.last_sale_at.strftime("%d/%m/%y") }}{% else %}<span title="Sin ventas registradas">Nunca compró</span>{% endif %}</small></td>
-      <td class="num">
-        {# Tier 6.1: subscription badge + open pedido count. When a customer
-           has an active suscripción, a quick "+ Pedido" shortcut is shown
-           next to the existing "Ver" button so the operator can escalate
-           a subscription into a pedido without opening the detail page. #}
-        {% if c.has_active_sub %}
-          <span class="badge badge-info" title="{{ c.active_sub_count }} suscripción(es) activa(s)" style="background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:4px;font-size:var(--text-xs);">Sub</span>
-        {% endif %}
-        {% if c.open_pedido_count %}
-          <span class="badge badge-warn" title="{{ c.open_pedido_count }} pedido(s) abierto(s)" style="background:#fff3e0;color:#e65100;padding:2px 6px;border-radius:4px;font-size:var(--text-xs);">{{ c.open_pedido_count }}p</span>
-        {% endif %}
-      </td>
-      <td><small>{{ c.created_at.strftime("%d/%m/%Y") if c.created_at else "—" }}</small></td>
-      <td class="actions">
-        <a href="/clientes/{{ c.id }}" class="btn btn-sm btn-ghost">Ver</a>
-        {# Tier 6.1 (2026-10-01): one-click "Pedido" shortcut. Goes to
-           /pedidos/nuevo with this customer preselected; the autofill
-           pipeline (phase 3) will clone the most recent pedido's lines. #}
-        <a href="/pedidos/nuevo?customer_id={{ c.id }}"
-           class="btn btn-sm"
-           title="Crear pedido nuevo para {{ fmt.entity_name(c) }}">+ Pedido</a>
+        <div class="catalog-list__l1">
+          <span><input type="checkbox" name="selected_clients" value="{{ c.id }}" aria-label="Seleccionar {{ fmt.entity_name(c) }}"></span>
+          <div class="catalog-list__name"><strong data-copy="{{ c.id }}" title="Click to copy ID">{{ fmt.entity_name(c) }}</strong></div>
+          <div class="catalog-list__phone">{{ c.phone }}</div>
+          <div class="catalog-list__tier">{{ ui.status_pill(c.tier_label, c.tier_sev) }}</div>
+          <details class="row-meta-details catalog-list__details">
+            <summary>Ver detalles</summary>
+          <div class="inv-list__panel">
+            <div class="inv-list__sorts">
+              {{ cliente_sort("n_sales", "Visitas", sort, dir, q, tier, page) }}
+              {{ cliente_sort("lifetime_spend_gs", "Gasto total", sort, dir, q, tier, page) }}
+              {{ cliente_sort("points", "Puntos", sort, dir, q, tier, page) }}
+              {{ cliente_sort("last_sale_at", "Última compra", sort, dir, q, tier, page) }}
+            </div>
+            <div class="inv-list__field">
+              <span class="inv-list__label">Visitas</span>
+              <span class="num">{{ c.n_sales }}</span>
+            </div>
+            <div class="inv-list__field">
+              <span class="inv-list__label">Gasto total</span>
+              <span class="num">{{ m.gs(c.lifetime_spend_gs) }}</span>
+            </div>
+            <div class="inv-list__field">
+              <span class="inv-list__label">Puntos</span>
+              <span class="num">{{ c.points }}</span>
+            </div>
+            <div class="inv-list__field">
+              <span class="inv-list__label">Última compra</span>
+              <small>{% if c.last_sale_at %}{{ c.last_sale_at.strftime("%d/%m/%y") }}{% else %}<span title="Sin ventas registradas">Nunca compró</span>{% endif %}</small>
+            </div>
+            <div class="inv-list__field" title="Suscripciones activas / Pedidos abiertos">
+              <span class="inv-list__label">Sub · Ped</span>
+              {% if c.has_active_sub %}
+                <span class="badge badge-info" title="{{ c.active_sub_count }} suscripción(es) activa(s)" style="background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:4px;font-size:var(--text-xs);">Sub</span>
+              {% endif %}
+              {% if c.open_pedido_count %}
+                <span class="badge badge-warn" title="{{ c.open_pedido_count }} pedido(s) abierto(s)" style="background:#fff3e0;color:#e65100;padding:2px 6px;border-radius:4px;font-size:var(--text-xs);">{{ c.open_pedido_count }}p</span>
+              {% endif %}
+              {% if not c.has_active_sub and not c.open_pedido_count %}<span class="muted">—</span>{% endif %}
+            </div>
+            <div class="inv-list__field">
+              <span class="inv-list__label">Registrado</span>
+              <small>{{ c.created_at.strftime("%d/%m/%Y") if c.created_at else "—" }}</small>
+            </div>
+            <div class="inv-list__actions">
+              <a href="/clientes/{{ c.id }}" class="btn btn-sm btn-ghost">Ver</a>
+              {# One-click pedido with this customer preselected. #}
+              <a href="/pedidos/nuevo?customer_id={{ c.id }}"
+                 class="btn btn-sm"
+                 title="Crear pedido nuevo para {{ fmt.entity_name(c) }}">+ Pedido</a>
+            </div>
+          </div>
+        </details>
+        </div>
       </td>
     </tr>
     {% endfor %}

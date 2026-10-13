@@ -1306,6 +1306,64 @@ form ui-date {
 }
 .inv-list thead .inv-list__l1 > :last-child { justify-self: end; }
 
+/* Productos (6) and clientes (5): L1 stays one line; Ver detalles spans the row. */
+.product-list { --catalog-cols: 2rem minmax(12rem, 2.2fr) minmax(6.5rem, 0.9fr) auto auto minmax(6.5rem, auto); --catalog-detail-col: 6; }
+.client-list { --catalog-cols: 2rem minmax(10rem, 1.8fr) minmax(8rem, 1fr) auto minmax(6.5rem, auto); --catalog-detail-col: 5; }
+.catalog-list__l1 {
+  display: grid;
+  grid-template-columns: var(--catalog-cols);
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+.catalog-list__price,
+.catalog-list__phone { text-align: right; font-variant-numeric: tabular-nums; }
+.catalog-list__details { grid-column: var(--catalog-detail-col); grid-row: 1; justify-self: end; }
+.catalog-list__details.row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+/* display:contents on <details> only promotes <summary> here, so the panel
+   collapses into the first grid column. Keep the open disclosure as the
+   grid item that spans the row. */
+.catalog-list__details[open] {
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: stretch;
+  min-width: 0;
+}
+.catalog-list__details[open] > summary { display: block; text-align: right; margin-bottom: 0.35rem; }
+.catalog-list__details[open] > .inv-list__panel { width: 100%; }
+.catalog-list .inv-list__field {
+  min-width: 8rem;
+  max-width: 16rem;
+  overflow-wrap: anywhere;
+}
+.catalog-list thead .catalog-list__l1 > :last-child { justify-self: end; }
+@media (max-width: 640px) {
+  .catalog-list__l1 { grid-template-columns: 2rem minmax(0, 1fr) auto; }
+  .catalog-list__name { grid-column: 2; grid-row: 1; }
+  .catalog-list__price,
+  .catalog-list__phone { grid-column: 3; grid-row: 1; text-align: right; }
+  .catalog-list__disp,
+  .catalog-list__tier { grid-column: 2; grid-row: 2; }
+  .catalog-list__edit { grid-column: 3; grid-row: 2; justify-self: end; }
+  .catalog-list__details,
+  .catalog-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .catalog-list__details[open] > summary,
+  .catalog-list__details[open] > .inv-list__panel { grid-column: auto; grid-row: auto; width: 100%; }
+}
+
 /* Producción day plan: Listo, producto, lote, hecho. Parked fields span the row. */
 .prod-day__l1 {
   display: grid;

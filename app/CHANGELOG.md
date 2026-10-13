@@ -1,4 +1,15 @@
 
+## 2026-10-12 — Productos and clientes lists show the daily row
+
+Productos leads with the name, the sale price, availability, and Editar.
+SKU, portion, wholesale, recipe, cost, margin, prime cost, and production
+sit under Ver detalles. Importar CSV and Exportar CSV stay in Más. The
+extra product filters sit under Filtros.
+
+Clientes leads with the name, the phone, and the loyalty level. Exportar
+CSV and Ver duplicados sit in Más. Visits, spend, points, last purchase,
+subscriptions, and + Pedido sit under Ver detalles.
+
 ## 2026-10-12 — Pedidos parked columns sort again
 
 Canal, Pago, Líneas, and Total sort from buttons inside Ver detalles.
