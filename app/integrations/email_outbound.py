@@ -45,7 +45,6 @@ from __future__ import annotations
 
 import logging
 import smtplib
-import socket
 from dataclasses import dataclass
 from email.message import EmailMessage
 from typing import Callable
@@ -93,9 +92,7 @@ class EmailOutboundConfig:
         try:
             port = int(port_raw)
         except ValueError as exc:
-            raise EmailConfigError(
-                f"AIW_SMTP_PORT must be an integer, got {port_raw!r}"
-            ) from exc
+            raise EmailConfigError(f"AIW_SMTP_PORT must be an integer, got {port_raw!r}") from exc
 
         return cls(
             smtp_host=host,
@@ -286,6 +283,6 @@ def send_email_outbound(
 __all__ = [
     "EmailConfigError",
     "EmailOutboundConfig",
-    "send_email_outbound",
     "_email_is_transient",
+    "send_email_outbound",
 ]

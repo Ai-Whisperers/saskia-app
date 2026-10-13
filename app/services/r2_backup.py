@@ -43,8 +43,8 @@ from typing import Protocol
 
 from cryptography.fernet import Fernet, InvalidToken
 
-from app.rms.config import R2_CONFIG_PATH
 from app.retry import retry_transient
+from app.rms.config import R2_CONFIG_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +87,7 @@ def _r2_is_transient(exc: BaseException) -> bool:
             error_block = response.get("Error")
             code = error_block.get("Code") if isinstance(error_block, dict) else None
             metadata = response.get("ResponseMetadata", {})
-            http_status = (
-                metadata.get("HTTPStatusCode") if isinstance(metadata, dict) else None
-            )
+            http_status = metadata.get("HTTPStatusCode") if isinstance(metadata, dict) else None
             # NoSuchKey / 404 should never retry — operator asked for
             # an object that doesn't exist (or the prefix is wrong).
             if code in {"NoSuchKey", "NotFound", "404"} or http_status == 404:
