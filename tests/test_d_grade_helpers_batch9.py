@@ -1,4 +1,8 @@
 """Parametrized coverage for two more D-grade helpers with no branch matrix.
+# allow-hardcoded-dates: frozen-time fixtures (_ACC_PERFECT, _ACC_OVER_BAKED,
+# _ACC_UNDER_BAKED, _LIBRO_* specs) pin 2026 calendar dates for deterministic
+# weekday arithmetic and S1-batch9 branch matrix coverage — relative-time
+# assertions are anchored on these fixed dates, not on datetime.now().
 
 S1 batch-9 (test coverage continuation): lock the branch matrix of two
 D-grade helpers that lack parametrized coverage:
@@ -75,6 +79,7 @@ D-grade helpers that lack parametrized coverage:
         `Refund.target_type == "sale"` filter — different target_type
         ignored)
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -82,7 +87,6 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
 import pytest
-
 
 # ─── compute_plan_accuracy row spec ───────────────────────────────────────────
 
@@ -109,16 +113,12 @@ class _AccuracySpec:
     # Sale rows (non-voided): list of (product_index, sold_at, qty,
     # unit_price_gs, voided (bool)). Locks the sale contribution
     # branch and the voided exclusion branch.
-    sales: list[tuple[int, datetime, float, int, bool]] = field(
-        default_factory=list
-    )
+    sales: list[tuple[int, datetime, float, int, bool]] = field(default_factory=list)
     # Caller-supplied planned_qty_by_pid_day map.
     # Entries: (product_index, for_date, qty). product_index in the
     # `products` list (None means "orphan FK" — refers to an id we
     # never seeded, to lock the fallback name branch).
-    planned: list[tuple[Optional[int], date, float]] = field(
-        default_factory=list
-    )
+    planned: list[tuple[Optional[int], date, float]] = field(default_factory=list)
 
     # ─── compute_plan_accuracy kwargs ──────────────────────────────────
     start_date: date = date(2026, 1, 1)
@@ -188,9 +188,7 @@ _ACC_PERFECT = _AccuracySpec(
     ),
     products=[("Pan de queso", 5000)],
     completions=[(0, date(2026, 1, 1), 10.0)],
-    sales=[
-        (0, datetime(2026, 1, 1, 14, 0, tzinfo=timezone.utc), 10.0, 5000, False)
-    ],
+    sales=[(0, datetime(2026, 1, 1, 14, 0, tzinfo=timezone.utc), 10.0, 5000, False)],
     planned=[(0, date(2026, 1, 1), 10.0)],
     expect_daily_rows_count=1,
     expect_total_planned=10.0,
@@ -238,9 +236,7 @@ _ACC_OVER_BAKED = _AccuracySpec(
     ),
     products=[("Bizcocho", 5000)],
     completions=[(0, date(2026, 1, 1), 12.0)],
-    sales=[
-        (0, datetime(2026, 1, 1, 14, 0, tzinfo=timezone.utc), 8.0, 5000, False)
-    ],
+    sales=[(0, datetime(2026, 1, 1, 14, 0, tzinfo=timezone.utc), 8.0, 5000, False)],
     planned=[(0, date(2026, 1, 1), 10.0)],
     expect_first_daily_accuracy=1.2,
     expect_first_daily_under_baked=0.0,
@@ -470,9 +466,7 @@ class _LibroVentasSpec:
 
     # ─── libro_ventas kwargs ───────────────────────────────────────────
     start_date: datetime = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    end_date: datetime = datetime(
-        2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc
-    )
+    end_date: datetime = datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
     tax_mode: str = "included"
     limit: int = 10_000
 
@@ -938,10 +932,11 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
     `with SF() as s:` opens a new connection, and SQLite :memory:
     databases are per-connection).
     """
+    from sqlalchemy.orm import sessionmaker
+
     from app.rms.db import init_db, make_engine
     from app.rms.models_legacy import Product, ProductionCompletion, Sale
     from app.rms.plan_accuracy import compute_plan_accuracy
-    from sqlalchemy.orm import sessionmaker
 
     spec: _AccuracySpec = row["spec"]
 
@@ -1035,33 +1030,25 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
         )
 
     if spec.expect_total_planned is not None:
-        assert report.total_planned == pytest.approx(
-            spec.expect_total_planned, abs=1e-3
-        ), (
+        assert report.total_planned == pytest.approx(spec.expect_total_planned, abs=1e-3), (
             f"{spec.id}: total_planned={report.total_planned}, "
             f"expected {spec.expect_total_planned} — {spec.description}"
         )
 
     if spec.expect_total_completed is not None:
-        assert report.total_completed == pytest.approx(
-            spec.expect_total_completed, abs=1e-3
-        ), (
+        assert report.total_completed == pytest.approx(spec.expect_total_completed, abs=1e-3), (
             f"{spec.id}: total_completed={report.total_completed}, "
             f"expected {spec.expect_total_completed} — {spec.description}"
         )
 
     if spec.expect_total_sold is not None:
-        assert report.total_sold == pytest.approx(
-            spec.expect_total_sold, abs=1e-3
-        ), (
+        assert report.total_sold == pytest.approx(spec.expect_total_sold, abs=1e-3), (
             f"{spec.id}: total_sold={report.total_sold}, "
             f"expected {spec.expect_total_sold} — {spec.description}"
         )
 
     if spec.expect_avg_accuracy is not None:
-        assert report.avg_accuracy == pytest.approx(
-            spec.expect_avg_accuracy, abs=1e-3
-        ), (
+        assert report.avg_accuracy == pytest.approx(spec.expect_avg_accuracy, abs=1e-3), (
             f"{spec.id}: avg_accuracy={report.avg_accuracy}, "
             f"expected {spec.expect_avg_accuracy} — {spec.description}"
         )
@@ -1075,9 +1062,7 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
         )
 
     if spec.expect_under_baked_pct is not None:
-        assert report.under_baked_pct == pytest.approx(
-            spec.expect_under_baked_pct, abs=1e-3
-        ), (
+        assert report.under_baked_pct == pytest.approx(spec.expect_under_baked_pct, abs=1e-3), (
             f"{spec.id}: under_baked_pct={report.under_baked_pct}, "
             f"expected {spec.expect_under_baked_pct} — {spec.description}"
         )
@@ -1097,10 +1082,7 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
         )
 
     if spec.expect_n_days_with_completion is not None:
-        assert (
-            report.n_days_with_completion
-            == spec.expect_n_days_with_completion
-        ), (
+        assert report.n_days_with_completion == spec.expect_n_days_with_completion, (
             f"{spec.id}: n_days_with_completion="
             f"{report.n_days_with_completion}, expected "
             f"{spec.expect_n_days_with_completion} — {spec.description}"
@@ -1119,9 +1101,7 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
         )
 
     if spec.expect_summaries_count is not None:
-        assert (
-            len(report.product_summary) == spec.expect_summaries_count
-        ), (
+        assert len(report.product_summary) == spec.expect_summaries_count, (
             f"{spec.id}: product_summary={len(report.product_summary)}, "
             f"expected {spec.expect_summaries_count} — {spec.description}"
         )
@@ -1130,9 +1110,7 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
     if report.daily_rows:
         first = report.daily_rows[0]
         if spec.expect_first_daily_accuracy is not None:
-            assert first.accuracy == pytest.approx(
-                spec.expect_first_daily_accuracy, abs=1e-3
-            ), (
+            assert first.accuracy == pytest.approx(spec.expect_first_daily_accuracy, abs=1e-3), (
                 f"{spec.id}: first row accuracy={first.accuracy}, "
                 f"expected {spec.expect_first_daily_accuracy} — "
                 f"{spec.description}"
@@ -1140,18 +1118,14 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
 
         if spec.expect_first_daily_accuracy_is_none is not None:
             is_none = first.accuracy is None
-            assert (
-                is_none == spec.expect_first_daily_accuracy_is_none
-            ), (
+            assert is_none == spec.expect_first_daily_accuracy_is_none, (
                 f"{spec.id}: first row accuracy is None?={is_none}, "
                 f"expected={spec.expect_first_daily_accuracy_is_none} — "
                 f"{spec.description}"
             )
 
         if spec.expect_first_daily_under_baked is not None:
-            assert (
-                first.under_baked == spec.expect_first_daily_under_baked
-            ), (
+            assert first.under_baked == spec.expect_first_daily_under_baked, (
                 f"{spec.id}: first row under_baked={first.under_baked}, "
                 f"expected {spec.expect_first_daily_under_baked} — "
                 f"{spec.description}"
@@ -1165,9 +1139,7 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
             )
 
         if spec.expect_first_daily_product_name is not None:
-            assert (
-                first.product_name == spec.expect_first_daily_product_name
-            ), (
+            assert first.product_name == spec.expect_first_daily_product_name, (
                 f"{spec.id}: first row product_name={first.product_name!r}, "
                 f"expected {spec.expect_first_daily_product_name!r} — "
                 f"{spec.description}"
@@ -1184,9 +1156,7 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
 
         if spec.expect_first_daily_demand_met_is_none is not None:
             is_none = first.demand_met is None
-            assert (
-                is_none == spec.expect_first_daily_demand_met_is_none
-            ), (
+            assert is_none == spec.expect_first_daily_demand_met_is_none, (
                 f"{spec.id}: first row demand_met is None?={is_none}, "
                 f"expected={spec.expect_first_daily_demand_met_is_none} — "
                 f"{spec.description}"
@@ -1196,10 +1166,7 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
     if report.product_summary:
         first_sum = report.product_summary[0]
         if spec.expect_first_summary_under_baked is not None:
-            assert (
-                first_sum.under_baked_units
-                == spec.expect_first_summary_under_baked
-            ), (
+            assert first_sum.under_baked_units == spec.expect_first_summary_under_baked, (
                 f"{spec.id}: first summary under_baked="
                 f"{first_sum.under_baked_units}, expected "
                 f"{spec.expect_first_summary_under_baked} — "
@@ -1207,10 +1174,7 @@ def test_compute_plan_accuracy_branches(row: dict) -> None:
             )
 
         if spec.expect_first_summary_over_baked is not None:
-            assert (
-                first_sum.over_baked_units
-                == spec.expect_first_summary_over_baked
-            ), (
+            assert first_sum.over_baked_units == spec.expect_first_summary_over_baked, (
                 f"{spec.id}: first summary over_baked="
                 f"{first_sum.over_baked_units}, expected "
                 f"{spec.expect_first_summary_over_baked} — "
@@ -1234,10 +1198,11 @@ def test_libro_ventas_branches(row: dict) -> None:
     for the lifetime of the test (mirrors the working
     ``test_libro_ventas_refunds.py::lv_session`` fixture pattern).
     """
+    from sqlalchemy.orm import sessionmaker
+
     from app.rms.accounting import libro_ventas
     from app.rms.db import init_db, make_engine
     from app.rms.models_legacy import Customer, Product, Refund, Sale
-    from sqlalchemy.orm import sessionmaker
 
     spec: _LibroVentasSpec = row["spec"]
 
@@ -1315,9 +1280,7 @@ def test_libro_ventas_branches(row: dict) -> None:
 
     # ─── Seed Refunds ─────────────────────────────────────────────
     for target_type, sale_index, amount_gs in spec.refunds:
-        sale_id = (
-            seeded_sale_ids[sale_index] if sale_index >= 0 else 999
-        )
+        sale_id = seeded_sale_ids[sale_index] if sale_index >= 0 else 999
         refund = Refund(
             target_type=target_type,
             target_id=sale_id,
@@ -1350,8 +1313,7 @@ def test_libro_ventas_branches(row: dict) -> None:
 
     if spec.expect_rows_count is not None:
         assert len(rows) == spec.expect_rows_count, (
-            f"{spec.id}: rows={len(rows)}, expected {spec.expect_rows_count} "
-            f"— {spec.description}"
+            f"{spec.id}: rows={len(rows)}, expected {spec.expect_rows_count} — {spec.description}"
         )
 
     if not rows:
@@ -1428,19 +1390,14 @@ def test_libro_ventas_branches(row: dict) -> None:
         )
 
     if spec.expect_first_invoice_ruc is not None:
-        assert (
-            first.invoice_customer_ruc == spec.expect_first_invoice_ruc
-        ), (
+        assert first.invoice_customer_ruc == spec.expect_first_invoice_ruc, (
             f"{spec.id}: first row invoice_customer_ruc="
             f"{first.invoice_customer_ruc!r}, expected "
             f"{spec.expect_first_invoice_ruc!r} — {spec.description}"
         )
 
     if spec.expect_first_invoice_cust_name is not None:
-        assert (
-            first.invoice_customer_name
-            == spec.expect_first_invoice_cust_name
-        ), (
+        assert first.invoice_customer_name == spec.expect_first_invoice_cust_name, (
             f"{spec.id}: first row invoice_customer_name="
             f"{first.invoice_customer_name!r}, expected "
             f"{spec.expect_first_invoice_cust_name!r} — "
