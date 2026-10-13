@@ -1,6 +1,6 @@
 # Sazón — Improvement Backlog (Operator-curated)
 
-**Last updated:** 2026-10-01
+**Last updated:** 2026-10-13 (post S1–S4 sweep)
 **Source:** Iván's prioritized list from backend audit + product review
 
 This file tracks every improvement opportunity surfaced across audits, all live in
@@ -12,6 +12,19 @@ the code, and operator-ranked. Status is the latest known state.
 > has a second client. See [`WHAT_NEXT.md`](../../WHAT_NEXT.md) for the
 > current operator-facing priorities. Keep this file as the historical
 > audit-driven reference.
+>
+> **2026-10-13 S1–S4 sweep note.** All four campaign lanes (S1
+> parametrization, S2 robustness, S3 cyclomatic complexity, S4
+> verify-catalog-on-vps helpers) landed on `main` between 2026-10-10
+> and 2026-10-13 — see the CHANGELOG entries for `2026-10-13` for
+> the full PR list. **One carry-over follow-up** survives:
+> **SASKIA-211 persist-DB idempotency test** (the
+> in-memory `:memory:` SQLite fixture can't satisfy the
+> `_seed_sales_90_days` idempotency scenario that S1-batch14 wanted,
+> so it shipped as `pytest.skip(...)` with a TODO pointing back to
+> SASKIA-211 — see
+> `tests/test_d_grade_helpers_batch14.py:903`). This is the open
+> test-engineering item for the next S1 batch.
 
 ## Tier 1: P0 — Critical correctness (5 items)
 
@@ -108,6 +121,15 @@ the code, and operator-ranked. Status is the latest known state.
 - ✅ Pedido board chime on new orders (closes phase-14 TODO)
 - ✅ `product_bulk_edit` + `products_import_csv` switched from private Starlette attrs (`request._json()` / `request._form()`) to FastAPI parameters — 2026-10-01 (Phase 14 Tier 3 + hygiene A9)
 - ✅ Todo inventory updated to mark 5 stale items closed (Phase 14)
+
+### 2026-10-13 — S1–S4 campaign batch (PRs #177, #178, #180–#202)
+
+- ✅ **S1 test parametrization (#178 / #181 / #184 / #186 / #189 / #191 / #192 / #193 / #195 / #199)** — 9 D-grade helper clusters parametrized to lift coverage rows without changing behavior.
+- ✅ **S2 robustness (#177 / #180 / #187 / #200)** — silent-except sweep across `app/routers/` (PR4, 54-test gate), `AppError → Sentry level` mapping + `app/rms/sentry.py` (PR5), `retry_transient` wiring in scrapers + `backup_crypto` (PR6), `retry_transient` wiring in `r2_backup` + `email_outbound` (PR7; closure of the lane).
+- ✅ **S3 cyclomatic complexity (#172 / #176 / #182 / #183 / #185 / #188 / #190 / #194 / #201)** — orchestrator-pattern helper extractions across 9 multi-letter SASKIA-211 tickets; `produccion_worksheet` CC 166→4 is the headline.
+- ✅ **S4 verify-catalog-on-vps (#202)** — extract 6 helpers from the vps catalog check + 31 new test cases.
+- ✅ **#196 — Compact operating lists** — Proveedores / Caja / Banco / Fiado / Movimientos / Ventas / Historial behind `Más / Filtros / Ver detalles`.
+- ✅ **#197 — Test-hygiene sweep** — `# allow-hardcoded-dates: <reason>` markers on 16 frozen-time/fixture tests (unblocks the `test_no_hardcoded_dates.py` gate).
 
 ## Notes (2026-10-01)
 
