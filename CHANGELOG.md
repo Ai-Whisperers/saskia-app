@@ -1,3 +1,42 @@
+## 2026-10-13 — s5 batch-1: docs refresh after S1–S4 sweep (WHAT_NEXT + IMPROVEMENT_BACKLOG + CHANGELOG)
+
+### Changed
+
+- **`WHAT_NEXT.md`** — rewrote the 2026-10-10 narrative section with a
+  2026-10-13 "shipped since 10-10" roll-up (S1 parametrization,
+  S2 robustness, S3 cyclomatic complexity, S4 verify-catalog-on-vps
+  + #196 operating-list polish + #197 hardcoded-dates sweep). The
+  ranked next-up list is rebuilt: **#1 is now SASKIA-211 persist-DB
+  idempotency test** (the carry-over from S1-batch14 that shipped as
+  `pytest.skip(...)` against the in-memory SQLite fixture — see
+  `tests/test_d_grade_helpers_batch14.py:903`), then VPS secrets
+  rotation, then coverage gap analysis.
+- **`docs/operations/2026-10-12-WHAT_NEXT-archived.md`** (new) —
+  archived the prior (2026-10-12 docs-verification-pass) version per
+  the WHAT_NEXT cadence rule.
+- **`docs/roadmap/IMPROVEMENT_BACKLOG.md`** — bumped "Last updated"
+  to 2026-10-13; added a "carry-over follow-up" callout for
+  SASKIA-211 persist-DB idempotency test and a "2026-10-13 S1–S4
+  campaign batch" block in the "Recently shipped" section listing
+  every PR in the sweep.
+
+### Not changed
+
+- `app/`, `scripts/`, `tests/`, `.github/` — zero behavior touches
+  in this batch. This is a pure docs-PR as the lane implies
+  (`hermes/levelup-s5-batch1` is the coordination lane). The
+  `CHANGELOG.md` gate (`grep -qx "CHANGELOG.md"`) is satisfied by
+  this entry alone (rule 35).
+
+### Note on the rebase
+
+Branch `hermes/levelup-s5-batch1` started 2 PRs behind `main` (at
+`46bf1857`); `git fetch origin && git rebase origin/main -X theirs`
+landed cleanly — the 4 new commits replayed without manual
+intervention. HEAD after rebase: `921d05c6 refactor(s4-batch1):
+extract helpers in scripts/verify_catalog_on_vps (CC reduction + 31
+tests) (#202)`.
+
 ## 2026-10-13 — test(retry): wire retry_transient at R2 + SMTP call sites (S2 robustness PR7 wiring test gate)
 
 **Scope**: `tests/test_retry_wiring_2.py` (new, 12 tests), `app/services/r2_backup.py` + `app/integrations/email_outbound.py` (import path fixes from `app.rms.retry` → `app/retry.py`, post-#187 module move).

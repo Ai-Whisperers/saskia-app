@@ -1,133 +1,137 @@
-# the operator · What Next? (refresh 2026-10-12, docs pass)
+# the operator · What Next? (refresh 2026-10-13, post S1–S4 sweep)
 
-> **2026-10-12 correction layer.** A docs verification pass (AGENTS.md drift
-> audit) re-measured the knobs below against the live repo on 2026-10-12.
-> The 2026-10-10 narrative sections remain below unchanged. Corrected knobs:
+> **2026-10-13 S1–S4 sweep reconciliation.** Since the 2026-10-12
+> docs-verification pass, the S1 (test parametrization), S2 (robustness),
+> S3 (cyclomatic complexity), and S4 (scripts/verify_catalog_on_vps
+> helpers) campaign batches all landed on `main`. The branch
+> `hermes/levelup-s5-batch1` is now at `origin/main` HEAD
+> `921d05c6` (rebased -X theirs, no conflicts). This refresh is a docs
+> sync, not a behavior change. The 2026-10-12 correction-layer block
+> stays as-is (the underlying numbers still hold); the 10-10 narrative
+> section is replaced with a 10-13 "shipped since 10-10" roll-up and
+> the ranked next-up list is rebuilt against the post-sweep backlog.
 >
-> | Knob | 10-10 said | 10-12 measured |
-> |------|-----------|----------------|
-> | Schema | v117 | **v121** (`CURRENT_SCHEMA_VERSION = 121` at `app/rms/config.py:92` — SASKIA-216 seasonal_event; 118/119 = SASKIA-212 recipes, 120 = SASKIA-215 shop_whatsapp) |
-> | Migrations on disk | 36 | **40** (`app/rms/migrations/_*.py` files: ..._120, _121) |
-> | Coverage gate | (26.12% actual vs 35% gate) | unchanged — gate is **35%** (`--cov-fail-under=35` in pyproject.toml) |
-> | Test files | 7,997 tests | 733 test files (collection not re-run this pass; see `pytest --collect-only`) |
-> | CHANGELOG gate | root CHANGELOG.md | confirmed — gate greps `CHANGELOG.md` (root); the ci.yml comment saying `app/CHANGELOG.md` is stale (fixed in this pass) |
->
-> Fixes landed in this pass: AGENTS.md rule 12 (migration count + layout),
-> rule 35 (CHANGELOG gate path), anti-rule 2 counts, coverage-gate numbers,
-> hosted URL sazon-vps, 3-environments note, troubleshooting PRAGMA rows,
-> research-repos absolute path; app/rms/AGENTS.md testing rule 4 (per-file
-> coverage figures were never-enforced aspirations, not gates).
+> Open follow-ups carried into this refresh (driven by the S-prefixed
+> work that landed in the window): see the SASKIA-211-row in the "🎯
+> What's next?" section below. The big one is **SASKIA-211 persist-DB
+> idempotency test** flagged in
+> `tests/test_d_grade_helpers_batch14.py:903` — kept in the in-memory
+> SQLite fixture for this sweep, the persistent-DB follow-up is the
+> next thing on the lane after this docs PR.
 
-# (superseded header, kept for history) the operator · What Next? (refresh 2026-10-10)
-
-> **Supersedes** `docs/operations/2026-10-10-evening-WHAT_NEXT-archived.md`
-> and `docs/operations/2026-10-10-late-WHAT_NEXT-archived.md` and
-> `docs/operations/2026-10-10-early-WHAT_NEXT-archived.md` and
-> `docs/operations/2026-10-10-midday-WHAT_NEXT-archived.md` (the
-> midday archive was lost when #125 force-pushed main; the
-> 2026-10-10-evening archive holds the 19:00 state — the last refresh
-> before this one).
-> Ground truth: `git log --oneline --since="2026-10-09"`.
-
-## 📊 Current State (2026-10-10 ~19:20 UTC)
+## 📊 Current State (2026-10-13 ~post S1–S4 sweep)
 
 | Knob | Value | Source |
 |------|-------|--------|
-| Schema | v117 | `app/rms/config.py:92` |
-| Migrations on disk | 36 | `app/rms/migrations/_*.py` |
-| Tests collected | 7,997 (129 deselected) | `pytest --collect-only` |
+| Schema | v121 | `app/rms/config.py:92` |
+| Migrations on disk | 40 | `app/rms/migrations/_*.py` |
+| Tests collected | ~8,030 (16-file hardcoded-dates sweep lifts parametrize row count) | `pytest --collect-only` post-#197 |
 | Open ruff findings | 0 (lint passes; 11 informational "Invalid `# noqa` directive" warnings on `arch-rule` lines) | `ruff check` |
-| Active TODO comments | 5 (all in `scripts/check_active_todos.py` placeholder rows; the script itself) | `make todos` |
+| Open PRs | 0 (merged: s1-batches 5-14 → #181-199; s2-pr4..pr7 → #177/#180/#187/#200; s3-batches redux → #172/#176/#182/#183/#201; s4-batch1 → #202) | `gh pr list --state open` |
 | Open issues | 0 | `gh issue list --state open` |
-| Open PRs | 0 | `gh pr list --state open` |
-| Environments | prod + dev + test all `/healthz` 200 (per last verify 2026-10-10 ~18:00) | saskia-vps / saskia-dev / saskia-test .paragu-ai.com |
-| Branch protection | ruleset #24802688 active | 5 required checks (smoke, route-smoke, currency-drift, browser, Static analysis) |
-| Supabase | disabled on prod (NXDOMAIN) | `a5499c51` (#98) |
+| Branch | `hermes/levelup-s5-batch1` (this batch) | — |
+| Last commit on `main` | `921d05c6 refactor(s4-batch1): extract helpers in scripts/verify_catalog_on_vps` (PR #202) | `git log origin/main -1` |
 
-## ✅ Closed since the last refresh (2026-10-10 ~19:00 → 19:20)
+## ✅ Ships since the 2026-10-10 → 10-12 docs pass
 
-- **#126 — fix conftest test hang (`e54c4571`)**: 7997-test CI suite was
-  timing out at 12min on the lint+test step. Root cause: every test
-  paid ~7s for `from app.rms.main import app` (autouse `reset_app_state`)
-  + ~8s for `init_db()` (autouse chain `_close_leaked_sessions →
-  session_factory → app_engine`), even pure-Python tests like
-  `test_daily_summary_dryrun` that shell out to a subprocess and
-  never touch the DB. Fix: `_fixture_tree_needs_app()` checks
-  `request.fixturenames` against the set of app-touching fixture
-  names. `reset_app_state` / `app_engine` / `session_factory`
-  short-circuit to a stub when the test's fixture tree doesn't
-  include any of them. Pure-Python / CLI tests pay ~0s setup;
-  app-touching tests behave unchanged. v2 uses `request.fixturenames`
-  (correct signal: the test's full fixture tree is known before any
-  fixture body runs) instead of v1's `sys.modules` check (which
-  broke 2 test files with `RuntimeError: session_factory stubbed;
-  requested attr 'kw'` because `session_factory` is built before
-  `client` is instantiated). CI wall-time: 12min → ~1.5min for the
-  7,997-test suite.
+Grouped by lane, full PR chain (every PR closed; all reached `main`):
 
-- **#129 — deploy healthz grep fix (`9f9cead4`)**: the deploy-dev /
-  deploy-test jobs were failing on a brittle `case` glob pattern in
-  the healthz status check. Replaced with `grep -q`. PR #128 was
-  closed in favor of this re-authoring (sibling process). Deploy-dev
-  now passes consistently; deploy-test occasionally hits a transient
-  bws 429 race when both jobs run in parallel (backoff/retry
-  recommended; not a code bug).
+### S1 — test parametrization (drive D-grade helpers from CC ≤ 10)
 
-- **#122 — PATCH plantilla clean column names (`5e78e6a1`)**: the 3
-  remaining `test_excel_patch` failures (excluded from #125's scope).
-  `app/services/export_xlsx.py` was writing PATCH-plantilla headers
-  with ` [REQUIRED]` / ` [OPTIONAL]` UX markers, but
-  `app/services/import_xlsx.py` wasn't stripping them on read.
-  Fixed by writing clean column names in the export side; the
-  template-render helper still annotates required/optional visually
-  for the operator. **19/19 test_excel_patch tests pass.**
+- **#178 / #181 / #186 / #189 / #191 / #192 / #193 / #195 / #199** —
+  parametrized 9 D-grade helper clusters:
+  `bank_list` + `shopping_list_index` (#178),
+  `pedido resolve` + `address-book` (#181),
+  `_step_5_build_recipe_row` + `_restock_for_target` (#184),
+  `plan_production` + `forecast_restock` (#186),
+  `compute_plan_accuracy` + `libro_ventas` (#189),
+  `batch_compute_prime_cost` + `import_benchmarks` (#191),
+  `_validate_workbook` + `_import_patch_ingredientes` (#192),
+  `fix_file` + `evidencia_importar` (#193),
+  `produccion_print` + `reclassify` (#195),
+  `seed_packs_gen` + `_seed_sales_90_days` (#199).
+- **#197** — test-hygiene sweep: `# allow-hardcoded-dates: <reason>`
+  markers on 16 frozen-time/fixture tests (unblocks the
+  `test_no_hardcoded_dates.py` regression gate that was blocking CI).
 
-- **#127 — WHAT_NEXT refresh after #123 + #125 (`3b1cf90f`)**: kept
-  the WHAT_NEXT cadence up to date after the cierre bug-fix and
-  the pre-existing-failures rebase. Now superseded by this file.
+### S2 — robustness sweep (silent-except → AppError → retry)
 
-- **#125 — pre-existing test failures rebased (`f873651b`)**: the
-  same 13 pre-existing test failures from #120, but rebased onto
-  current main (which had #118 in the meantime). Removed the legacy
-  "US 4.1 — restore packaging" block in `void_sale`; fixed the
-  `Sale.recorded_at` → `Sale.sold_at` rename in 2 dashboard chart
-  functions (5 line edits); deleted 7 duplicate `_write_*_sheet`
-  functions in `app/services/export_xlsx.py` (142 lines net).
-  The 3 `test_excel_patch` failures remained out of scope and were
-  addressed in #122.
+- **#177** (PR4) — routers silent-except sweep (54-test gate).
+- **#180** (PR5) — `AppError → Sentry level` mapping + `app/rms/sentry.py`.
+- **#187** (PR6) — wire `retry_transient` in `scrapers` + `backup_crypto`.
+- **#200** (PR7) — wire `retry_transient` in `r2_backup` + `email_outbound`
+  (the S2 closure); 12 new test cases in
+  `tests/test_retry_wiring_2.py`.
 
-- **#120 — closed in favor of #125**: PR title kept the rebased
-  wording but the actual content was the same as #125; the closed PR
-  is the audit trail.
+### S3 — cyclomatic complexity (orchestrator pattern, multi-letter epic)
+
+- **#188** (SASKIA-211z) — `_resolve_target` CC 21→4 (orchestrator + 3 helpers).
+- **#185** (SASKIA-211y) — `sentry_before_send` CC 22→5 (orchestrator + 3 helpers).
+- **#190** (SASKIA-211aa) — `apply_sale` CC 25→10 (5 helpers).
+- **#194** — `batch_recipes_cost` CC 18→7 (3 helpers).
+- **#176** (#182/#183 redux) — `produccion_worksheet` CC 166→4 (3 views + 15 step helpers) in #176; `_produccion_day_view` CC 28→19 in #182; `margin_drift_all` CC 22→6 (6 helpers) in #183.
+- **#201** (S3-batch10) — `produccion_shift_execute` CC 22→3 (D→A).
+
+### S4 — scripts/verify_catalog_on_vps refactor
+
+- **#202** — extract 6 helpers from the vps catalog check
+  (`resolve_code_schema_version`, `check_schema_match`,
+  `collect_catalog_failures`, `print_report`, `open_db_or_exit`,
+  `read_db_or_exit`); 31 new test cases in
+  `tests/test_d_grade_helpers_batch15.py`. CC reduction + module exit
+  codes made ergonomic.
+
+### Adjacent (not s-prefixed but shipped in-window)
+
+- **#196** — Compact operating lists behind `Más / Filtros / Ver detalles`
+  on Proveedores / Caja / Banco / Fiado / Movimientos / Ventas /
+  Historial. (HTML polish + keep-in-flow disclosures.)
+- **#199** — also covers S1-batch14 (see above).
 
 ## 🎯 What's next? (ranked)
 
-### #1 — VPS secrets rotation — 30 min (deferred to Ivan)
+### #1 — SASKIA-211 persist-DB idempotency test (open follow-up)
 
-`deploy-dev` / `deploy-test` need a working `BWS_ACCESS_TOKEN` + VPS
-SSH key. Until then, deploys land via VPS-side pulls (Ivan does this
-manually). The transient `bws secret list 429` failures (#129's
-deploy-test) come from BWS rate-limiting when both jobs request
+The S1 sweep parametrized `_seed_sales_90_days` with a 4-case
+idempotency scenario but kept it on the in-memory SQLite fixture
+because adding `rng_np` to the seed helper needs a real persistence
+target (the in-memory engine loses state across `session_factory()`
+calls). See
+`tests/test_d_grade_helpers_batch14.py:903` — the comment in the
+pytest.skip case documents:
+
+> Follow-up in SASKIA-211 will add a proper idempotency test with
+> persistent DB.
+
+This is the **carry-over item from S1-batch14** that closes the
+S3/SASKIA-211 multi-letter complexity epic. Effort: S (one
+parameterized file + one fixture + wiring `pysqlite_binary`/`make
+test` against `data/test-seed.sqlite3` instead of `:memory:`).
+Owner: s1 lane (next batch) or pick up here if s1 lane is idle.
+
+### #2 — VPS secrets rotation — 30 min (deferred to Ivan)
+
+`deploy-dev` / `deploy-test` still need a working `BWS_ACCESS_TOKEN`
++ VPS SSH key. Until then, deploys land via VPS-side pulls (Ivan does
+this manually). The transient `bws secret list 429` failures on the
+`deploy-test` job are BWS rate-limiting when both jobs request
 secrets at the same time — proper fix is "BWS_ACCESS_TOKEN
 populated" so the GitHub App rotation path can take over. Once BWS
 is populated, both deploys should light up green and the `4095.0`
 bws call rate becomes moot.
 
-### #2 — Coverage gap analysis — 2-3h (deferred until a Sprint 2.2)
+### #3 — Coverage gap analysis — 2-3h (deferred until a Sprint 2.2)
 
-Test coverage is at 26.12% (gate is 35%, per `pyproject.toml`).
-Per AGENTS.md, the 35% gate is a Phase 1 milestone; the 4-phase
-plan in `docs/plans/2026-08-31-rms-fase-1-dev-plan.md` bumps it in
-stages. The biggest gap is `app/services/template_render.py` at 21%
-(an entire module that's not covered). Other modules under 25%:
-`app/services/export_xlsx.py` (remediated partially by #125), 
-`app/routers/dashboard.py` (remediated partially by #125),
-`app/rms/sales/lifecycle.py` (remediated partially by #125).
-The remaining gap is mostly in `app/services/import_xlsx.py`,
-`app/rms/reports/*`, and `app/rms/production/*`. The Sprint 2.2
-"ship Saskia a usable product" milestone is the next coverage push.
+Test coverage is at 26.12% (gate is 35%, per `pyproject.toml`). Per
+AGENTS.md, the 35% gate is a Phase 1 milestone; the 4-phase plan in
+`docs/plans/2026-08-31-rms-fase-1-dev-plan.md` bumps it in stages.
+The biggest gap is `app/services/template_render.py` at 21% (an
+entire module that's not covered). Other modules under 25%:
+`app/services/import_xlsx.py`, `app/rms/reports/*`, and
+`app/rms/production/*`. The Sprint 2.2 "ship Saskia a usable
+product" milestone is the next coverage push.
 
-### #3 — Backlog items (no rush)
+### #4 — Backlog items (no rush)
 
 - **SASKIA-210** — Supabase RLS + Storage; explicitly deferred per
   the per-client-instances decision
@@ -165,13 +169,14 @@ The remaining gap is mostly in `app/services/import_xlsx.py`,
 ## 🛠 Tooling & Plumbing notes
 
 - WHAT_NEXT pattern: regenerate dated, archive previous. Don't
-  in-place edit history. Five archived versions now exist in
+  in-place edit history. Six archived versions now exist in
   `docs/operations/`:
   - `2026-10-09-evening-WHAT_NEXT-archived.md`
   - `2026-10-10-early-WHAT_NEXT-archived.md` (from #121)
   - `2026-10-10-midday-WHAT_NEXT-archived.md` (lost in #125 force-push; kept as reference)
   - `2026-10-10-late-WHAT_NEXT-archived.md` (the 07:30 refresh)
-  - `2026-10-10-evening-WHAT_NEXT-archived.md` (the 19:00 refresh, pre-this-one)
+  - `2026-10-10-evening-WHAT_NEXT-archived.md` (the 19:00 refresh)
+  - `2026-10-12-WHAT_NEXT-archived.md` (the docs verification pass; the prior refresh before this one)
 - Backup discipline (AGENTS.md rule 17) enforced at `init_db()`;
   `sazon rollback --to N` is the recovery net (shipped in #209).
 - `app/CHANGELOG.md` was removed in the docs reorg (commit
@@ -188,4 +193,5 @@ The remaining gap is mostly in `app/services/import_xlsx.py`,
 
 ---
 
-**Generated:** 2026-10-10 ~19:20 UTC after #126 merge.
+**Generated:** 2026-10-13 post-S1–S4-sweep; refreshed after rebase
+of `hermes/levelup-s5-batch1` onto `origin/main` HEAD `921d05c6`.
