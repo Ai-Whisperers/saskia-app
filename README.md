@@ -2,7 +2,7 @@
 
 > **The operator's app** for one bakery (La Vaquita Feliz, Asunción, Paraguay). Full restaurant-management system: sales, inventory, recipes, production planning, customers, financials, audit. Local-first + hosted dual deployment.
 >
-> **Status (2026-10-09):** Schema v117 · 350 routes (51 routers) · 7,961 tests (718 files) · 131 templates · 1,530 commits.
+> **Status (2026-10-09):** Schema v117 · 350 routes (52 routers) · 7,961 tests (718 files) · 132 templates · 1,530 commits.
 > **Active deployment:** [sazon-vps.paragu-ai.com](https://sazon-vps.paragu-ai.com) (VPS via Docker Swarm + Cloudflare Tunnel).
 
 ---
@@ -60,7 +60,7 @@ Then open <http://127.0.0.1:8765> and log in as `demo` / `admin`.
 
 **Tech stack:** FastAPI · SQLAlchemy 2.x · Jinja2 · SQLite (local) / PostgreSQL (hosted) · ruff (lint+format) · pytest (test) · uv (deps) · Docker Swarm + Cloudflare Tunnel (hosted).
 
-**Module layout:** 91 RMS modules in `app/rms/` (domain logic, no HTTP) · 51 routers in `app/routers/` (HTTP layer) · 131 templates in `app/templates/` · 12 SQLAlchemy models in `app/rms/models/` · 117 schema migrations in `app/rms/migrations/` (hand-rolled, no Alembic).
+**Module layout:** 91 RMS modules in `app/rms/` (domain logic, no HTTP) · 52 routers in `app/routers/` (HTTP layer) · 132 templates in `app/templates/` · 12 SQLAlchemy models in `app/rms/models/` · 117 schema migrations in `app/rms/migrations/` (hand-rolled, no Alembic).
 
 ### Where to add X
 
@@ -90,8 +90,8 @@ sazon-app/                                       ~6,500 files · 1,530 commits
 │
 ├── app/                                         the application
 │   ├── main.py                                  FastAPI app + middleware
-│   ├── routers/                                 51 HTTP routers (sales, recipes, …)
-│   ├── templates/                               131 Jinja2 templates
+│   ├── routers/                                 52 HTTP routers (sales, recipes, …)
+│   ├── templates/                               132 Jinja2 templates
 │   ├── static/                                  images, CSS, JS (no build step)
 │   ├── rms/                                     91 domain modules (no HTTP, no templates)
 │   │   ├── AGENTS.md                            app-level hard rules (subset of root AGENTS.md)
@@ -227,8 +227,8 @@ sazon-app/                                       ~6,500 files · 1,530 commits
 | **Production URL** | <https://sazon-vps.paragu-ai.com> |
 | **Schema version** | v117 (2026-10-09) |
 | **Tests** | 7,961 (718 files) |
-| **Routes** | 350 (51 routers) |
-| **Templates** | 131 (Jinja2) |
+| **Routes** | 350 (52 routers) |
+| **Templates** | 132 (Jinja2) |
 | **Commits** | 1,530 |
 | **First commit** | 2026-08-31 (split from `Ai-Whisperers/saskia` initial) |
 | **License** | MIT (visibility: public, no PII) |
