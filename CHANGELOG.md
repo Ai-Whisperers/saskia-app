@@ -1,3 +1,21 @@
+## 2026-10-12 — fix(caja): rename template var fmt→money (the real /caja/abrir 500 root cause)
+
+**Scope**: `app/routers/caja.py` (+5/-3), `app/templates/caja.html` (+6/-6).
+
+`POST /caja/abrir` redirected to `caja.html` (not `caja_z.html`). The `caja_home` handler passed `money=_fmt` in the ctx but template still used `{{ fmt(...) }}` on lines 22-23 (the 500 reproducer). Fix: rename template var to match the ctx key (`fmt`→`money`) in 6 callsites. `caja_z.html` was already consistent (`{{ money(...) }}` since 2026-08). Single source of truth: the router exports one `money()` helper; the template uses the ctx key.
+
+The `_fmt` name was a vestige — the template contract from day-1 was `money=...` (see `caja_z.html`). The `caja.html` template was missing the rename in 2026-08. Now consistent.
+
+Closes the `KNOWN_FAILING_SMOKE` entry from #168.
+
+## 2026-10-12 — fix(recipes): record_audit on recipe_create (P0 audit-log gap)
+
+**Scope**: `app/routers/recipes.py` (+27).
+
+`POST /recetas/nueva` was the only recipe write path missing a `record_audit()` call. The 4 other recipe writes (`update`, `delete`, `add_line`, `remove_line`) all log `write.recipe.*` audit rows. `recipe_create` was a silent P0 gap (forensic-blind — no record of who created a recipe or when). Fix: extract `_record_recipe_create_audit(request, session, recipe)` that mirrors the existing `_record_recipe_update_audit` (same target_type="recipe", same `lines_count` in detail). Behaviour-preserving for the request flow; +1 audit row per recipe_create.
+
+Locked by: 1 new test in `tests/test_p0_audit_log_coverage.py` (additive, same pattern as the parametrized audit-row tests in #168).
+
 ## 2026-10-12 — style: apply ruff format + fix F841 unused locals (S1 batch-1)
 
 **Scope**: `scripts/gen_route_smoke.py`, `tests/_lib/parametrization_examples.py`, `tests/seeders.py`, `tests/test_p0_audit_log_coverage_parametrized.py`, `tests/test_route_smoke_generated.py`, `tests/test_seeders_registry.py` — pure formatting + 2 unused-local fixes (`--unsafe-fixes`). No behavior change. Required by fast-pr-gate smoke gate.
