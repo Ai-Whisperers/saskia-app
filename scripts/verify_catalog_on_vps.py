@@ -54,6 +54,12 @@ MIN_COUNTS = {
 # Path default: matches AIW_RMS_DB_PATH env in the live container.
 DEFAULT_DB_PATH = os.environ.get("AIW_RMS_DB_PATH", "/data/rms.sqlite")
 
+# Exit codes (kept module-level so test mod can import them).
+EXIT_OK = 0
+EXIT_DB_OR_SCHEMA = 1
+EXIT_CATALOG_LOW = 2
+EXIT_SCRIPT_ERROR = 3
+
 
 def get_db_metadata(conn: sqlite3.Connection) -> dict:
     """Pull schema_version from app_meta.
@@ -79,6 +85,113 @@ def get_counts(conn: sqlite3.Connection) -> dict[str, int]:
     return out
 
 
+def resolve_code_schema_version(args: argparse.Namespace) -> int | None:
+    """Pick the expected schema version: CLI > env > app module > None.
+
+    Returns None when no source is available, in which case the
+    schema check is skipped (caller treats None as "no check").
+    """
+    if args.code_schema_version is not None:
+        return args.code_schema_version
+    code_sv_env = os.environ.get("SASKIA_CODE_SCHEMA_VERSION")
+    if code_sv_env:
+        return int(code_sv_env)
+    try:
+        from app.rms.config import CURRENT_SCHEMA_VERSION as code_sv
+    except (ImportError, AttributeError):
+        return None
+    return code_sv
+
+
+def check_schema_match(meta: dict, code_sv: int | None, quiet: bool) -> int | None:
+    """Return EXIT_DB_OR_SCHEMA when the persisted schema_version differs
+    from the code's CURRENT_SCHEMA_VERSION; None when the check is
+    skipped (code_sv is None) or the values match.
+    """
+    if code_sv is None:
+        return None
+    if meta.get("schema_version") != code_sv:
+        if not quiet:
+            print(
+                f"FAIL: schema_version={meta.get('schema_version')} != "
+                f"code CURRENT_SCHEMA_VERSION={code_sv}"
+            )
+        return EXIT_DB_OR_SCHEMA
+    return None
+
+
+def collect_catalog_failures(counts: dict[str, int]) -> list[str]:
+    """Build the list of "<table>=<actual> (need >= <min>)" strings for
+    every catalog table whose row count is below the minimum.
+    """
+    failures: list[str] = []
+    for table, minimum in MIN_COUNTS.items():
+        actual = counts.get(table, 0)
+        if actual < minimum:
+            failures.append(f"{table}={actual} (need >= {minimum})")
+    return failures
+
+
+def print_report(
+    db_path: str,
+    meta: dict,
+    code_sv: int | None,
+    counts: dict[str, int],
+    failures: list[str],
+    quiet: bool,
+) -> None:
+    """Emit the cron-friendly one-liner (--quiet) or the human-readable
+    multi-line summary. Never raises; the caller decides the exit code.
+    """
+    if quiet:
+        status = "OK" if not failures else "FAIL"
+        print(
+            f"vps-catalog-verify[{status}] "
+            f"sv={meta.get('schema_version')} "
+            f"code={code_sv} " + " ".join(f"{t}={c}" for t, c in counts.items())
+        )
+        return
+
+    print(f"=== Catalog on VPS (db: {db_path}) ===")
+    print(
+        f"  schema_version: {meta.get('schema_version')}"
+        + (f" (code: {code_sv})" if code_sv else "")
+    )
+    print("  catalog row counts:")
+    for table, count in counts.items():
+        minimum = MIN_COUNTS[table]
+        ok = "OK" if count >= minimum else "LOW"
+        print(f"    {table}: {count} (min {minimum}) [{ok}]")
+
+
+def open_db_or_exit(db_path: str, quiet: bool) -> sqlite3.Connection | int:
+    """Open the SQLite DB; return the connection or the exit code
+    the caller should propagate.
+    """
+    if not os.path.exists(db_path):
+        if not quiet:
+            print(f"ERROR: DB not found at {db_path}")
+        return EXIT_DB_OR_SCHEMA
+    try:
+        return sqlite3.connect(db_path)
+    except sqlite3.Error as exc:
+        if not quiet:
+            print(f"ERROR: cannot open {db_path}: {exc}")
+        return EXIT_SCRIPT_ERROR
+
+
+def read_db_or_exit(conn: sqlite3.Connection, quiet: bool) -> tuple[dict, dict[str, int]] | int:
+    """Run the two read queries; return (meta, counts) or an exit code."""
+    try:
+        meta = get_db_metadata(conn)
+        counts = get_counts(conn)
+    except sqlite3.Error as exc:
+        if not quiet:
+            print(f"ERROR: query failed: {exc}")
+        return EXIT_SCRIPT_ERROR
+    return meta, counts
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument(
@@ -96,76 +209,27 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = p.parse_args(argv)
 
-    if not os.path.exists(args.db):
-        if not args.quiet:
-            print(f"ERROR: DB not found at {args.db}")
-        return 1
+    conn_or_exit = open_db_or_exit(args.db, args.quiet)
+    if isinstance(conn_or_exit, int):
+        return conn_or_exit
+    conn = conn_or_exit
 
     try:
-        conn = sqlite3.connect(args.db)
-    except sqlite3.Error as exc:
-        if not args.quiet:
-            print(f"ERROR: cannot open {args.db}: {exc}")
-        return 3
-
-    try:
-        meta = get_db_metadata(conn)
-        counts = get_counts(conn)
-    except sqlite3.Error as exc:
-        if not args.quiet:
-            print(f"ERROR: query failed: {exc}")
-        return 3
+        meta_counts_or_exit = read_db_or_exit(conn, args.quiet)
     finally:
         conn.close()
+    if isinstance(meta_counts_or_exit, int):
+        return meta_counts_or_exit
+    meta, counts = meta_counts_or_exit
 
-    # Resolve code_schema_version: CLI override > env > app module.
-    code_sv_env = os.environ.get("SASKIA_CODE_SCHEMA_VERSION")
-    if args.code_schema_version is not None:
-        code_sv = args.code_schema_version
-    elif code_sv_env:
-        code_sv = int(code_sv_env)
-    else:
-        try:
-            from app.rms.config import CURRENT_SCHEMA_VERSION as code_sv
-        except (ImportError, AttributeError):
-            code_sv = None
+    code_sv = resolve_code_schema_version(args)
+    schema_exit = check_schema_match(meta, code_sv, args.quiet)
+    if schema_exit is not None:
+        return schema_exit
 
-    # Check schema match
-    if code_sv is not None and meta.get("schema_version") != code_sv:
-        if not args.quiet:
-            print(
-                f"FAIL: schema_version={meta.get('schema_version')} != "
-                f"code CURRENT_SCHEMA_VERSION={code_sv}"
-            )
-        return 1
-
-    # Check catalog row counts
-    failures = []
-    for table, minimum in MIN_COUNTS.items():
-        actual = counts.get(table, 0)
-        if actual < minimum:
-            failures.append(f"{table}={actual} (need >= {minimum})")
-
-    if args.quiet:
-        status = "OK" if not failures else "FAIL"
-        print(
-            f"vps-catalog-verify[{status}] "
-            f"sv={meta.get('schema_version')} "
-            f"code={code_sv} " + " ".join(f"{t}={c}" for t, c in counts.items())
-        )
-    else:
-        print(f"=== Catalog on VPS (db: {args.db}) ===")
-        print(
-            f"  schema_version: {meta.get('schema_version')}"
-            + (f" (code: {code_sv})" if code_sv else "")
-        )
-        print("  catalog row counts:")
-        for t, c in counts.items():
-            minimum = MIN_COUNTS[t]
-            ok = "OK" if c >= minimum else "LOW"
-            print(f"    {t}: {c} (min {minimum}) [{ok}]")
-
-    return 2 if failures else 0
+    failures = collect_catalog_failures(counts)
+    print_report(args.db, meta, code_sv, counts, failures, args.quiet)
+    return EXIT_CATALOG_LOW if failures else EXIT_OK
 
 
 if __name__ == "__main__":
