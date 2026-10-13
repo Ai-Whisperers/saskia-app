@@ -83,12 +83,55 @@ def sentry_before_send(event: dict, hint: dict) -> dict:
     """Sentry `before_send` hook: mirror errors to Telegram, then pass
     the event through untouched.
 
-    Mirrors only `error`-level events (Sentry level "error"/"fatal") to
-    avoid spamming from warnings. Rate damping: at most one Telegram
-    message per event-type per 60s (in-process; enough for a
-    single-process deployment — the VPS runs one uvicorn worker).
+    Two responsibilities:
+
+    1. **AppError -> Sentry level mapping** (S2 robustness PR5,
+       2026-10-13). Before any other decision, consult
+       ``app.rms.sentry.sentry_level_for`` with the originating exception
+       from ``hint["exc_info"]`` and override ``event["level"]`` so:
+
+       - 4xx AppErrors (NotFound, ValidationError, ...) land as "warning"
+         so the operator's Sentry inbox isn't polluted by user-input
+         noise.
+       - 5xx AppErrors (DataIntegrityError, DependencyError, ...) land as
+         "error" so on-call gets pinged.
+
+       Non-AppError exceptions fall through untouched -- Sentry's default
+       "error" level for ``capture_exception`` is the right call for them.
+
+    2. Mirror ``error``/``fatal`` events to Telegram (rate-damped at one
+       mirror per fingerprint per 60s, in-process; the VPS runs one
+       uvicorn worker). After step 1, "warning"-level AppErrors (the 4xx
+       user-input noise) are correctly filtered out of the Telegram
+       mirror so the operator's phone doesn't buzz on every NotFound.
     """
     import time
+
+    # 1. AppError -> Sentry level mapping. Lazy import keeps the existing
+    #    lazy-load contract intact: an unset TG_BOT_TOKEN/TG_CHAT_ID does
+    #    not trigger this module's heavy imports.
+    try:
+        from app.rms.sentry import sentry_level_for
+
+        exc_info = (hint or {}).get("exc_info") if hint else None
+        # Sentry SDK puts (type, value, traceback) in hint["exc_info"];
+        # element [1] is the live exception instance.
+        if exc_info and len(exc_info) >= 2 and isinstance(exc_info[1], BaseException):
+            mapped_level = sentry_level_for(exc_info[1])
+            if mapped_level:
+                # Ensure the event dict exists; mutate in place (Sentry
+                # passes the same object to before_send and the filter
+                # below consumes it).
+                if not isinstance(event, dict):
+                    event = {"level": mapped_level}
+                else:
+                    event["level"] = mapped_level
+    except Exception as _exc:
+        # Defensive: a buggy level mapper must not break the SDK
+        # pipeline. Worst case, the event keeps its default level and
+        # the operator sees the raw Sentry stacktrace in the dashboard.
+        # Logged to stderr (no loguru import here -- lazy-load contract).
+        print(f"WARNING: AppError level mapper failed: {_exc!r}", file=sys.stderr)
 
     level = (event or {}).get("level", "")
     if level not in ("error", "fatal"):
