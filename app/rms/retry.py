@@ -39,57 +39,107 @@ T = TypeVar("T")
 # custom `is_transient=` predicate.
 
 
-def default_is_transient(exc: BaseException) -> bool:
-    """Best-effort check for "is this exception worth retrying?".
+def _is_locked_db_error(name: str, msg: str) -> bool:
+    """sqlite3 / sqlalchemy OperationalError "locked/busy/deadlock" shape."""
+    return name == "OperationalError" and ("locked" in msg or "busy" in msg or "deadlock" in msg)
 
-    Recognizes (via duck-typing so the module stays stdlib-only):
 
-    - `requests.RequestException` — transport-level errors
-      (ConnectionError, Timeout, HTTPError for 5xx via status_code).
-    - `urllib.error.URLError` — stdlib URL fetches.
-    - `sqlite3.OperationalError` messages containing "locked" or
-      "database is locked" — common transient SQLite contention.
-    - `sqlalchemy.exc.OperationalError` messages with the same shape.
-    - `socket.timeout`, `socket.gaierror` — stdlib socket errors.
+def _is_httpx_status_error(exc: BaseException, full_name: str) -> bool | None:
+    """httpx.HTTPStatusError -> bool, or None if not that exception.
 
-    Returns False for anything else. Call sites needing a finer
-    classifier (e.g. only retry on `ConnectionError`, never on
-    `HTTPError` 4xx) pass their own predicate.
+    httpx's ``raise_for_status()`` raises ``HTTPStatusError`` for BOTH
+    4xx and 5xx. A 404 must NOT retry, but a 429 / 5xx should. We
+    return ``None`` for "not an HTTPStatusError" so the caller can
+    fall through to the next rule.
     """
-    name = type(exc).__name__
-    full_name = f"{type(exc).__module__}.{name}"
-    msg = str(exc).lower()
+    if type(exc).__name__ != "HTTPStatusError" or full_name != "httpx.HTTPStatusError":
+        return None
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if not isinstance(status, int):
+        # No status available -- terminal (retrying a malformed call
+        # is not going to help).
+        return False
+    return status >= 500 or status == 429
 
-    # sqlite3 / sqlalchemy OperationalError message-based check
-    if name == "OperationalError" and ("locked" in msg or "busy" in msg or "deadlock" in msg):
-        return True
 
-    # requests.RequestException and subclasses (ConnectionError,
-    # Timeout, HTTPError with 5xx)
-    if full_name == "requests.exceptions.RequestException" or name in {
+# Set-lifted to module scope: keeps default_is_transient short and the
+# membership test cheap.
+_HTTP_TRANSPORT_NAMES: frozenset[str] = frozenset(
+    {
+        # requests family
         "RequestException",
         "ConnectionError",
         "ConnectTimeout",
         "ReadTimeout",
         "HTTPError",
-    }:
+        # httpx transport-level (HTTPStatusError handled separately)
+        "ConnectError",
+        "TimeoutException",
+        "NetworkError",
+        "TransportError",
+    }
+)
+
+# stdlib socket errors. NOTE: in Python 3.11+ `socket.timeout` is an
+# alias for the builtin `TimeoutError`, so the class name surfaces as
+# "TimeoutError" not "timeout". We accept BOTH so the classifier stays
+# valid on 3.10 (older runtime) and 3.13+ (current runtime).
+_SOCKET_NAMES: frozenset[str] = frozenset(
+    {
+        "TimeoutError",
+        "timeout",
+        "gaierror",
+        "ConnectionRefusedError",
+        "ConnectionResetError",
+    }
+)
+
+
+def default_is_transient(exc: BaseException) -> bool:
+    """Best-effort check for "is this exception worth retrying?".
+
+    Recognizes (via duck-typing so the module stays stdlib-only):
+
+    - ``requests.RequestException`` -- transport-level errors
+      (ConnectionError, Timeout, HTTPError for 5xx via status_code).
+    - ``httpx.HTTPError`` subclasses -- ``ConnectError``,
+      ``ConnectTimeout``, ``ReadTimeout``, ``TimeoutException``,
+      ``NetworkError``, ``TransportError`` (transport-level, retry);
+      ``HTTPStatusError`` retries only on 5xx and 429 (other 4xx are
+      terminal).
+    - ``urllib.error.URLError`` -- stdlib URL fetches.
+    - ``sqlite3.OperationalError`` messages containing "locked" or
+      "database is locked" -- common transient SQLite contention.
+    - ``sqlalchemy.exc.OperationalError`` messages with the same shape.
+    - ``socket.timeout``, ``socket.gaierror`` -- stdlib socket errors.
+
+    Returns False for anything else. Call sites needing a finer
+    classifier (e.g. only retry on ``ConnectionError``, never on
+    ``HTTPError`` 4xx) pass their own predicate.
+    """
+    name = type(exc).__name__
+    full_name = f"{type(exc).__module__}.{name}"
+    msg = str(exc).lower()
+
+    if _is_locked_db_error(name, msg):
+        return True
+
+    httpx_status = _is_httpx_status_error(exc, full_name)
+    if httpx_status is not None:
+        return httpx_status
+
+    # requests.RequestException and other HTTPError subclasses
+    # (ConnectionError, Timeout, generic HTTPError without a status).
+    # We treat the transport-level family as transient -- same as the
+    # PR2 contract -- because we have no status code to inspect.
+    if full_name == "requests.exceptions.RequestException" or name in _HTTP_TRANSPORT_NAMES:
         return True
 
     # urllib (used by app.integrations.scrapers if requests is missing)
     if full_name == "urllib.error.URLError":
         return True
 
-    # stdlib socket errors. NOTE: in Python 3.11+ `socket.timeout` is an
-    # alias for the builtin `TimeoutError`, so the class name surfaces
-    # as "TimeoutError" not "timeout". We accept BOTH so the classifier
-    # stays valid on 3.10 (older runtime) and 3.13+ (current runtime).
-    if name in {
-        "TimeoutError",
-        "timeout",
-        "gaierror",
-        "ConnectionRefusedError",
-        "ConnectionResetError",
-    }:
+    if name in _SOCKET_NAMES:
         return True
 
     return False

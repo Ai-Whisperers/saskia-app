@@ -25,7 +25,37 @@ app/rms/refunds.py:_resolve_pedido_line_target        new (CC 7)
 
 `make complexity` no longer lists `refunds.py:_resolve_target` in the D-grade offender list (orchestrator is now A; every helper is B). Global offender count: 204 (was 205 before this batch; 205 → 204 → 203 next).
 
-Behavior preservation: 37 refund-touching tests across two files (all pre-existing tests, none added):
+
+## 2026-10-13 — feat(integrations+services): wire retry_transient in scrapers + backup_crypto (S2 robustness PR6)
+
+**Scope**: `app/rms/retry.py` (+19 lines, refactored `default_is_transient` from CC 9 -> CC 7), `app/integrations/scrapers.py` (HTTP blocks wrapped, +module doc note), `app/services/backup_crypto.py` (`encrypt_backup` + `decrypt_backup` bodies wrapped), `tests/test_retry_wiring.py` (new, 14 tests).
+
+Wires `app.rms.retry.retry_transient` (introduced in S2 PR2) at the call sites the PR2 docstring explicitly deferred to: HTTP at `app/integrations/scrapers.py` and crypto at `app/services/backup_crypto.py`. Both surfaces use `default_is_transient` as their classifier.
+
+- **`scrape_superseis`** + **`scrape_stock`** -- the inner `_fetch()` closure now goes through `retry_transient(_fetch, attempts=3, op_name="scrapers.<source>.fetch")`. Transient failures (5xx, 429, network timeouts, connection resets) retry with exponential backoff; non-transient 4xx (404, etc.) re-raise immediately via the existing `except httpx.HTTPError` branch. No public API change.
+- **`encrypt_backup`** + **`decrypt_backup`** -- the existing bodies are wrapped in `retry_transient(..., attempts=3, op_name="backup_crypto.<op>")`. Today the crypto primitives don't touch a DB, but the wrap provides the seam for any future DB-backed step (salt cache, key-derivation counter) without changing the public contract. `IntegrityError` / format errors above the wrap are NOT retried (they never reach the inner helper).
+
+**`default_is_transient` extended** (the helper itself is unchanged for the existing PR2 contract; this PR only adds two new rules + extracts two helpers to keep CC <= 10):
+
+  - `httpx.HTTPStatusError` is now status-code-aware: 5xx + 429 -> transient, other 4xx -> terminal. Previously the predicate treated ALL `httpx.HTTPError` as transient, which would have retried 404s.
+  - httpx transport-level class names (`ConnectError`, `TimeoutException`, `NetworkError`, `TransportError`) are now in the transient set. Previously only the `requests` family was recognized, which meant httpx transport errors were silently terminal.
+
+Refactored `default_is_transient` (CC 9 -> CC 7, well under the rule-40 ceiling of 10) by lifting `_HTTP_TRANSPORT_NAMES` / `_SOCKET_NAMES` to module-scope `frozenset`s and extracting `_is_locked_db_error` / `_is_httpx_status_error` helpers. No behavior change for the existing test surface (`tests/test_retry.py` still 21/21 green).
+
+**New `tests/test_retry_wiring.py`** (14 tests, parametrized across the two call sites + classifier):
+
+  - `test_default_classifier_httpx_429_is_transient` + `test_default_classifier_httpx_5xx_is_transient` + `test_default_classifier_httpx_4xx_other_is_terminal[400/401/403/404/410]` -- locks the new httpx classifier behavior.
+  - `test_default_classifier_httpx_connect_error_is_transient` -- locks the new transport-level recognition.
+  - `test_scraper_recovers_from_429` -- mocked `httpx.Client.get` raises 429 twice then returns a valid Superseis page; `retry_transient` retries through it. 3 attempts + 2 sleeps observed.
+  - `test_scraper_raises_on_4xx` -- mocked `httpx.Client.get` raises 404; `default_is_transient` returns False; no retry. 1 attempt + 0 sleeps observed.
+  - `test_backup_retries_on_db_locked` -- `derive_key` monkeypatched to raise `sqlite3.OperationalError("database is locked")` twice then succeed; `encrypt_backup` retries via the wrapped closure. 3 attempts + 2 sleeps observed.
+  - `test_backup_raises_on_integrity_error` -- `derive_key` monkeypatched to raise `sqlite3.IntegrityError`; `default_is_transient` returns False; no retry. 1 attempt + 0 sleeps observed.
+  - `test_both_honor_attempts_3_cap[scraper|backup]` -- parametrized over both surfaces; persistent 503 / persistent "database is locked" with `attempts=3` -> exactly 3 calls + 2 backoffs before re-raising.
+
+Verification: `uv run rtk pytest tests/test_retry_wiring.py --no-cov` -> 14 passed. Full pre-existing surface (`tests/test_retry.py` + `tests/test_scrapers.py` + `tests/test_backup_crypto.py` + `tests/test_backup_scheduler_encryption.py`) -> 88 passed, no regressions. Lint: `ruff check .` + `ruff format --check .` clean. Complexity: every modified function in `app/rms/retry.py` (default_is_transient B 7, retry_transient B 8, _is_httpx_status_error A 5, _is_locked_db_error A 4) and `app/services/backup_crypto.py` (encrypt_backup A 1) is at or below radon B-grade.
+
+
+## 2026-10-13 — test(s1-batch7): parametrize _step_5_build_recipe_row + _restock_for_target (CC 24 + 29, D-grade → +15 cases)
 
 - `tests/test_refunds.py::test_*` — 16/16: cap-exceeded trigger, partial-then-full, DB trigger bypass attempt, voided-sale rejection, unknown-sale rejection, invalid-target-type rejection, amount>0 enforcement, amount=0 blocked at DB, loyalty proportional reversal, etc.
 - `tests/test_refund_router.py::test_*` — 5/5: router-level smoke for the create-redirect / list flows.
