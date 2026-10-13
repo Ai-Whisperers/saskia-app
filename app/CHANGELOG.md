@@ -1,4 +1,11 @@
 
+## 2026-10-13 — Detalle stock-move dates show DD/MM/YYYY
+
+The stock-move Fecha cell rearranges `recorded_at_str` from
+`YYYY-MM-DDTHH:MM` to `DD/MM/YYYY HH:MM`. The live handler still sends
+UTC `isoformat()`, so a time near midnight can stay on the previous
+calendar day until the router converts it.
+
 ## 2026-10-13 — Historial footer labels the quantity and print shows parked columns
 
 The page total keeps the quantity sum in the Fecha cell with a Cant. label,

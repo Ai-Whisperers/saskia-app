@@ -164,6 +164,34 @@ def test_detalle_leads_with_total_product_and_recibo():
     assert 'href="/ventas/historial"' in src
 
 
+def test_detalle_stock_move_fecha_formats_iso_to_dd_mm_yyyy():
+    """The Fecha cell rearranges recorded_at_str to DD/MM/YYYY HH:MM.
+
+    sale_detail sends isoformat() and no recorded_at, so a raw
+    recorded_at_str shows 2026-10-13T… to the operator.
+    """
+    src = TEMPLATES.joinpath("ventas_detalle.html").read_text(encoding="utf-8")
+    table = src.find("Movimientos de stock")
+    assert table > 0
+    body = _slice(src, "<tbody>", "</tbody>", table)
+    cells: list[str] = []
+    cursor = 0
+    while True:
+        start = body.find("<td", cursor)
+        if start < 0:
+            break
+        end = body.find("</td>", start)
+        cells.append(body[start:end])
+        cursor = end + 5
+    assert len(cells) == 3
+    fecha = cells[2]
+    assert "{{ mv.recorded_at_str }}" not in fecha
+    assert (
+        "{{ mv.recorded_at_str[8:10] }}/{{ mv.recorded_at_str[5:7] }}/"
+        "{{ mv.recorded_at_str[0:4] }} {{ mv.recorded_at_str[11:16] }}"
+    ) in fecha
+
+
 def test_express_card_is_name_price_qty_and_cobrar():
     """Each card posts efectivo qty to /ventas/nueva. Volver al POS stays a ghost link."""
     src = TEMPLATES.joinpath("ventas_express.html").read_text(encoding="utf-8")
