@@ -30,10 +30,9 @@ OUTPUT_FILE = TESTS_DIR / "test_route_smoke_generated.py"
 # (tracking the gap) without failing CI. Each entry: (METHOD, PATH, TICKET).
 # When the underlying app bug is fixed, remove the entry and regenerate.
 KNOWN_FAILING_SMOKE: list[tuple[str, str, str]] = [
-    # POST /caja/abrir renders caja.html on success redirect, but the template
-    # references `fmt(...)` which the GET handler provides as `money=...`.
-    # Bug: get-vs-post ctx mismatch → 500 TypeError. Tracked separately.
-    ("POST", "/caja/abrir", "SASKIA-TBD-caja-fmt-shadow"),
+    # (empty — all known bugs in this category are now fixed as of S1 batch-2)
+    # To add a new entry: (method, path, ticket_id). The test asserts response
+    # status >= 500 and fails loud if the bug is fixed (prompting removal).
 ]
 
 

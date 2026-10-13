@@ -1,3 +1,9 @@
+## 2026-10-12 — test(smoke): clear KNOWN_FAILING_SMOKE (caja/abrir bug fixed)
+
+**Scope**: `scripts/gen_route_smoke.py` (KNOWN_FAILING_SMOKE list emptied), `tests/test_route_smoke_generated.py` (parametrized list emptied). 
+
+The S1 batch-2 `fmt`→`money` fix in `app/templates/caja.html` + `app/routers/caja.py` (this PR) closed the `/caja/abrir` 500 bug. The `KNOWN_FAILING_SMOKE` mechanism correctly failed loud (`test_known_failing_route[caja-abrir-...]` asserted `>= 500`, got `200`, raised "bug may be fixed! Remove from KNOWN_FAILING_SMOKE") — exactly the contract. Removed the entry; the route is now in the regular pass set (28/28 smoke cases pass).
+
 ## 2026-10-12 — test(infra): S1 batch-2 — parametrize 3 large test files (Phase 2 inc #3)
 
 **Scope**: `tests/test_produccion_polish_parametrized.py` (new), `tests/test_production_demand_parametrized.py` (new), `tests/test_ui_components_parametrized.py` (new) — apply the dedup pattern from `_lib/parametrization_examples.py` to 3 of the 5 largest test files identified in the S1 audit (>500 lines each). All additive (no test deletions). Total +17 cases.
