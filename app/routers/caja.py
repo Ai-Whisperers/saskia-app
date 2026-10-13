@@ -32,9 +32,15 @@ from app.services.template_render import render
 router = APIRouter(prefix="/caja", dependencies=[Depends(require_login)])
 
 
-def money(v: int | None) -> str:
-    """Format an integer Guaraní amount as a UI string ("Gs. 1.234.567" / "—")."""
-    return f"Gs. {v:,.0f}".replace(",", ".") if v is not None else "—"
+def money(v):
+    """Format integer Guaraní as a UI string.
+
+    Passthrough to m.gs() (the canonical D3 currency filter); the template
+    context injects m = TemplateRender so this just dispatches.
+    """
+    from app.services.template_render import TemplateRender
+
+    return TemplateRender().gs(v) if v is not None else "—"
 
 
 @router.get("", response_class=HTMLResponse)
