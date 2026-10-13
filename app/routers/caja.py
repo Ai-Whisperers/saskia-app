@@ -32,8 +32,15 @@ from app.services.template_render import render
 router = APIRouter(prefix="/caja", dependencies=[Depends(require_login)])
 
 
-def _fmt(v: int | None) -> str:
-    return f"Gs. {v:,.0f}".replace(",", ".") if v is not None else "—"
+def money(v):
+    """Format integer Guaraní as a UI string.
+
+    Passthrough to m.gs() (the canonical D3 currency filter); the template
+    context injects m = TemplateRender so this just dispatches.
+    """
+    from app.services.template_render import TemplateRender
+
+    return TemplateRender().gs(v) if v is not None else "—"
 
 
 @router.get("", response_class=HTMLResponse)
@@ -53,7 +60,7 @@ def caja_home(request: Request, session: Session = Depends(get_session)) -> HTML
             "open_sess": open_sess,
             "expected": exp,
             "recent": recent,
-            "money": _fmt,
+            "money": money,
         },
     )
 
@@ -137,4 +144,4 @@ def caja_z(
     sess = session.get(CashSession, session_id)
     if sess is None:
         return render(request, "caja.html", {"error": "Sesión no encontrada"}, status_code=404)
-    return render(request, "caja_z.html", {"sess": sess, "money": _fmt})
+    return render(request, "caja_z.html", {"sess": sess, "money": money})
