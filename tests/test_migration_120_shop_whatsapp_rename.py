@@ -8,6 +8,8 @@ Verifies:
 - Fresh DB (no legacy key) does not error
 """
 
+# allow-hardcoded-dates: fixture: ts='2026-10-12T00:00:00' is migration data, not relative-time
+
 from __future__ import annotations
 
 from sqlalchemy import text

@@ -20,6 +20,8 @@ A regression here would either:
   - Lose the restock event price and show a stale purchase_price_gs
 """
 
+# allow-hardcoded-dates: fixture: projected_stockout_at is test data, not a relative-time assertion
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone

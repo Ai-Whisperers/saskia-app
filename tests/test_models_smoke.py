@@ -30,6 +30,8 @@ What this does NOT do:
   - Replace tests/factories.py (it IS the factory's contract)
 """
 
+# allow-hardcoded-dates: fixture: updated_at='2026-10-12T00:00:00' is AppMeta row data, not relative-time
+
 from __future__ import annotations
 
 import pytest

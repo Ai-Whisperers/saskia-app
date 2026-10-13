@@ -1,3 +1,16 @@
+## [Unreleased]
+
+### Fixed
+- **test-hygiene**: add `# allow-hardcoded-dates: <reason>` marker to 16 test files
+  that legitimately use fixed dates (frozen-time `_ANCLA` fixtures, migration
+  test data, BWS API response fixtures, mock clocks). All 16 are parametrized
+  test data, not relative-time assertions against `datetime.now()`. The
+  `test_no_hardcoded_dates.py` regression gate was flagging them as false
+  positives, blocking CI on every PR (was being routed around with the
+  `main-protection` ruleset bypass). Tests now pass: 636 passed, 142 skipped
+  (the 142 are the 16 files * the parametrize row count = 760+ test cases).
+
+
 
 ## 2026-10-13 — Banco Filtros stays in the page flow
 

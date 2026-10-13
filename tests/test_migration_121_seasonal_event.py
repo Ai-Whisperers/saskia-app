@@ -10,6 +10,8 @@ Verifies:
 - The migration is reversible on a clean DB (drop table + recreate)
 """
 
+# allow-hardcoded-dates: fixture: event_date='2026-06-24' is seasonal_event row data, not relative-time
+
 from __future__ import annotations
 
 import pytest
