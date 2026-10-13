@@ -1,4 +1,19 @@
 
+## 2026-10-13 — Ventas historial, detalle, and Express stay one click deep
+
+Historial leads with the date, the product, the total, and Ver / Anular.
+Quantity, unit price, customer, payment, channel, who served it, and notes
+sit under Ver detalles, with the receipt and the pedido shortcut. Product,
+days, channel, voided sales, print, and CSV sit under Filtros. Search stays
+on the page. The three KPI cards stay.
+
+The sale page leads with the total, the product and quantity, the voided
+pill, and Ver recibo imprimible. Payment, notes, stock moves, and the
+helpdesk fields sit under Ver detalles.
+
+Express stays a card grid: name, price, quantity, and Cobrar, posting
+efectivo to /ventas/nueva. Volver al POS stays a ghost link.
+
 ## 2026-10-13 — Compact list headers stay over their columns
 
 Under 640px the productos and clientes headers use the same grid

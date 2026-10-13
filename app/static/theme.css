@@ -1466,3 +1466,86 @@ form ui-date {
     color: var(--color-text-muted, #6b7280);
   }
 }
+
+/* Historial Filtros sits on the right of the toolbar, so the panel opens inward. */
+.sale-history-toolbar .reorder-menu__panel {
+  right: 0;
+  left: auto;
+  max-width: min(32rem, calc(100vw - 2rem));
+}
+
+/* Historial: Fecha, producto, total, Ver / Anular. Ver detalles spans the row. */
+.sale-list__l1 {
+  display: grid;
+  grid-template-columns: minmax(7.5rem, 0.9fr) minmax(10rem, 1.8fr) minmax(6.5rem, 0.85fr) auto minmax(6.75rem, auto);
+  column-gap: 0.75rem;
+  row-gap: 0.75rem;
+  align-items: center;
+}
+.sale-list__total { text-align: right; font-variant-numeric: tabular-nums; }
+.sale-list__actions { display: flex; flex-wrap: wrap; gap: 0.35rem; justify-content: flex-end; }
+.sale-list__details { grid-column: span 1 / -1; grid-row: 1; justify-self: end; }
+.sale-list__details.row-meta-details { display: block; position: static; }
+.sale-list__details.row-meta-details > summary {
+  font-size: 0.85rem;
+  color: var(--color-text-link);
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.sale-list__details[open] {
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: stretch;
+  min-width: 0;
+}
+.sale-list__details[open] > summary { display: block; text-align: right; margin-bottom: 0.35rem; }
+.sale-list__details[open] > .inv-list__panel { width: 100%; }
+.sale-list thead .sale-list__l1 > :last-child { justify-self: end; }
+.sale-list .inv-list__field {
+  min-width: 8rem;
+  max-width: 16rem;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .sale-list__l1 { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) auto; }
+  .sale-list__fecha { grid-column: 1; grid-row: 1; }
+  .sale-list__producto { grid-column: 2; grid-row: 1; }
+  .sale-list__total { grid-column: 3; grid-row: 1; text-align: right; }
+  .sale-list__actions { grid-column: 1 / -1; grid-row: 2; justify-content: flex-start; }
+  .sale-list__details,
+  .sale-list__details[open] {
+    display: block;
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: stretch;
+    min-width: 0;
+  }
+  .sale-list__details[open] > summary,
+  .sale-list__details[open] > .inv-list__panel { grid-column: auto; grid-row: auto; width: 100%; }
+  .sale-list thead .sale-list__l1 > .sale-list__details { justify-self: stretch; }
+}
+
+.sale-detail__lead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  margin: 0.25rem 0 1rem;
+}
+.sale-detail__total {
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.sale-detail__what { font-size: 1.05rem; }
+.sale-detail__more { margin: 0.25rem 0 1rem; }
+.sale-detail__more > summary {
+  cursor: pointer;
+  width: fit-content;
+  font-size: 0.95rem;
+  color: var(--color-text-link);
+}
+.sale-detail__more > summary::-webkit-details-marker { display: none; }
+.sale-detail__panel { margin-top: 0.75rem; }
